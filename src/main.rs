@@ -1,3 +1,4 @@
+extern crate nix;
 extern crate clap;
 extern crate quantiles;
 extern crate hyper;
@@ -16,6 +17,7 @@ use std::str;
 use std::sync::mpsc::channel;
 use std::thread;
 use chrono::UTC;
+use std::process;
 
 mod backend;
 mod buckets;
@@ -32,7 +34,21 @@ mod backends {
     pub mod wavefront;
 }
 
+use nix::sys::signal::*;
+
+extern fn handle_sigint(_:i32) {
+    println!("Interrupted!");
+    process::exit(0);
+}
+
 fn main() {
+    let sig_action = SigAction::new(SigHandler::Handler(handle_sigint),
+                                            SaFlags::empty(),
+                                            SigSet::empty());
+    unsafe {
+        let _ = sigaction(SIGINT, &sig_action);
+    }
+
     let args = cli::parse_args();
 
     let level = match args.verbose {
