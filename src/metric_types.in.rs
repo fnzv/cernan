@@ -6,10 +6,10 @@ pub struct LogLine {
     pub tags: TagMap,
 }
 
-#[derive(PartialEq, Serialize, Deserialize, Clone)]
-pub struct Metric {
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+pub struct Metric<'a> {
     pub kind: MetricKind,
-    pub name: String,
+    pub name: Cow<'a, str>,
     pub time: i64,
     pub tags: TagMap,
     value: CKMS<f64>,

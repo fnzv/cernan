@@ -40,8 +40,8 @@ fn handle_tcp(chans: Vec<mpsc::Sender<metric::Event>>,
                 debug!("new peer at {:?} | local addr for peer {:?}",
                        stream.peer_addr(),
                        stream.local_addr());
-                let tags = tags.clone();
                 let chans = chans.clone();
+                let tags = tags.clone();
                 thread::spawn(move || {
                     handle_stream(chans, tags, stream);
                 });

@@ -10,6 +10,7 @@ use fnv::FnvHasher;
 use std::cmp::Ordering;
 use std::ops::AddAssign;
 use std::fmt;
+use std::borrow::Cow;
 
 pub type TagMap = HashMap<String, String, BuildHasherDefault<FnvHasher>>;
 
@@ -140,7 +141,7 @@ impl PartialOrd for Metric {
     }
 }
 
-impl Metric {
+impl<'a> Metric<'a> {
     /// Make a builder for metrics
     ///
     /// This function returns a MetricBuidler with a name set. A metric must
@@ -159,7 +160,7 @@ impl Metric {
     /// assert_eq!(m.value(), Some(1.1));
     /// ```
     pub fn new<S>(name: S, value: f64) -> Metric
-        where S: Into<String>
+        where S: Into<Cow<'a, str>>
     {
         let mut ckms = CKMS::new(0.001);
         ckms.insert(value);

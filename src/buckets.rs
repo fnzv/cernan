@@ -11,15 +11,13 @@ use fnv::FnvHasher;
 pub type HashMapFnv<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
 
 /// Buckets stores all metrics until they are flushed.
-pub struct Buckets {
-    counters: HashMapFnv<String, Vec<Metric>>,
-    gauges: HashMapFnv<String, Vec<Metric>>,
-    raws: HashMapFnv<String, Vec<Metric>>,
+pub struct Buckets<'a> {
+    counters: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
+    gauges: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
+    raws: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
 
-    timers: HashMapFnv<String, Vec<Metric>>,
-    histograms: HashMapFnv<String, Vec<Metric>>,
-
-    bin_width: i64,
+    timers: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
+    histograms: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
 }
 
 impl Default for Buckets {
