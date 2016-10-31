@@ -3,17 +3,17 @@ use buckets::Buckets;
 use metric::{Metric, LogLine};
 use chrono;
 
-pub struct Console {
-    aggrs: Buckets,
+pub struct Console<'a> {
+    aggrs: Buckets<'a>,
 }
 
-impl Console {
-    pub fn new(bin_width: i64) -> Console {
+impl<'a> Console<'a> {
+    pub fn new(bin_width: i64) -> Console<'a> {
         Console { aggrs: Buckets::new(bin_width) }
     }
 }
 
-impl Default for Console {
+impl<'a> Default for Console<'a> {
     fn default() -> Self {
         Self::new(1)
     }
@@ -25,8 +25,8 @@ fn fmt_line(key: &str, value: f64) {
 }
 
 
-impl Sink for Console {
-    fn deliver(&mut self, point: Metric) {
+impl<'a> Sink for Console<'a> {
+    fn deliver(&mut self, point: Metric<'a>) {
         self.aggrs.add(point);
     }
 

@@ -6,7 +6,7 @@ pub struct LogLine {
     pub tags: TagMap,
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Serialize, Deserialize, Clone)]
 pub struct Metric<'a> {
     pub kind: MetricKind,
     pub name: Cow<'a, str>,
@@ -16,9 +16,9 @@ pub struct Metric<'a> {
 }
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
-pub enum Event {
-    Statsd(Metric),
-    Graphite(Metric),
+pub enum Event<'a> {
+    Statsd(Metric<'a>),
+    Graphite(Metric<'a>),
     Log(Vec<LogLine>),
     TimerFlush,
 }

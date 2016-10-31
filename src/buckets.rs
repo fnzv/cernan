@@ -7,20 +7,23 @@ use metric::{Metric, MetricKind};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 use fnv::FnvHasher;
+use std::borrow::Cow;
 
 pub type HashMapFnv<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
 
 /// Buckets stores all metrics until they are flushed.
 pub struct Buckets<'a> {
-    counters: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
-    gauges: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
-    raws: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
+    counters: HashMapFnv<Cow<'a, str>, Vec<Metric<'a>>>,
+    gauges: HashMapFnv<Cow<'a, str>, Vec<Metric<'a>>>,
+    raws: HashMapFnv<Cow<'a, str>, Vec<Metric<'a>>>,
 
-    timers: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
-    histograms: HashMapFnv<String, Vec<(i64, Metric<'a>)>>,
+    timers: HashMapFnv<Cow<'a, str>, Vec<Metric<'a>>>,
+    histograms: HashMapFnv<Cow<'a, str>, Vec<Metric<'a>>>,
+
+    bin_width: i64,
 }
 
-impl Default for Buckets {
+impl<'a> Default for Buckets<'a> {
     /// Create a default Buckets
     ///
     ///
@@ -32,7 +35,7 @@ impl Default for Buckets {
     /// let bucket = Buckets::default();
     /// assert_eq!(0, bucket.counters().len());
     /// ```
-    fn default() -> Buckets {
+    fn default() -> Buckets<'a> {
         Buckets {
             counters: HashMapFnv::default(),
             gauges: HashMapFnv::default(),
@@ -44,8 +47,8 @@ impl Default for Buckets {
     }
 }
 
-impl Buckets {
-    pub fn new(bin_width: i64) -> Buckets {
+impl<'a> Buckets<'a> {
+    pub fn new(bin_width: i64) -> Buckets<'a> {
         let mut b = Buckets::default();
         b.bin_width = bin_width;
         b
@@ -93,8 +96,8 @@ impl Buckets {
     /// let mut bucket = cernan::buckets::Buckets::default();
     /// bucket.add(metric[0].clone());
     /// ```
-    pub fn add(&mut self, value: Metric) {
-        let name = value.name.to_owned();
+    pub fn add(&mut self, value: Metric<'a>) {
+        let name = value.name;
         let bkt = match value.kind {
             MetricKind::Counter => &mut self.counters,
             MetricKind::Gauge | MetricKind::DeltaGauge => &mut self.gauges,
@@ -110,23 +113,23 @@ impl Buckets {
         }
     }
 
-    pub fn counters(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn counters(&self) -> &HashMapFnv<Cow<'a, str>, Vec<Metric>> {
         &self.counters
     }
 
-    pub fn gauges(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn gauges(&self) -> &HashMapFnv<Cow<'a, str>, Vec<Metric>> {
         &self.gauges
     }
 
-    pub fn raws(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn raws(&self) -> &HashMapFnv<Cow<'a, str>, Vec<Metric>> {
         &self.raws
     }
 
-    pub fn histograms(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn histograms(&self) -> &HashMapFnv<Cow<'a, str>, Vec<Metric>> {
         &self.histograms
     }
 
-    pub fn timers(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn timers(&self) -> &HashMapFnv<Cow<'a, str>, Vec<Metric>> {
         &self.timers
     }
 }
@@ -202,25 +205,27 @@ mod test {
                 bkt1.add(m);
             }
 
-            let mut ms0 : Vec<(&String, &Vec<Metric>)> = bkt0.gauges()
+            let mut ms0: Vec<(&String, &Vec<Metric>)> = bkt0.gauges()
                 .iter()
                 .chain(bkt0.counters().iter())
                 .chain(bkt0.raws().iter())
                 .chain(bkt0.histograms().iter())
-                .chain(bkt0.timers().iter()).collect();
-            let mut ms1 : Vec<(&String, &Vec<Metric>)> = bkt1.gauges()
+                .chain(bkt0.timers().iter())
+                .collect();
+            let mut ms1: Vec<(&String, &Vec<Metric>)> = bkt1.gauges()
                 .iter()
                 .chain(bkt1.counters().iter())
                 .chain(bkt1.raws().iter())
                 .chain(bkt1.histograms().iter())
-                .chain(bkt1.timers().iter()).collect();
+                .chain(bkt1.timers().iter())
+                .collect();
             ms0.sort_by_key(|m| m.0);
             ms1.sort_by_key(|m| m.0);
 
-            for (x,y) in ms0.iter().zip(ms1.iter()) {
+            for (x, y) in ms0.iter().zip(ms1.iter()) {
                 let xv = x.1;
                 let yv = y.1;
-                for (i,a) in xv.iter().enumerate() {
+                for (i, a) in xv.iter().enumerate() {
                     assert_eq!(a.name, yv[i].name);
                     assert_eq!(a.kind, yv[i].kind);
                     assert_eq!(a.query(1.0), yv[i].query(1.0));

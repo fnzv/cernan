@@ -100,7 +100,7 @@ impl PartialOrd for MetricKind {
     }
 }
 
-impl AddAssign for Metric {
+impl<'a> AddAssign for Metric<'a> {
     fn add_assign(&mut self, rhs: Metric) {
         match rhs.kind {
             MetricKind::DeltaGauge | MetricKind::Gauge => self.kind = rhs.kind,
@@ -110,7 +110,7 @@ impl AddAssign for Metric {
     }
 }
 
-impl fmt::Debug for Metric {
+impl<'a> fmt::Debug for Metric<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f,
                "Metric {{ kind: {:#?}, name: {}, time: {}, tags: {:?}, value: {:?} }}",
@@ -122,7 +122,7 @@ impl fmt::Debug for Metric {
     }
 }
 
-impl PartialOrd for Metric {
+impl<'a> PartialOrd for Metric<'a> {
     fn partial_cmp(&self, other: &Metric) -> Option<Ordering> {
         match self.kind.partial_cmp(&other.kind) {
             Some(Ordering::Equal) => {
@@ -159,7 +159,7 @@ impl<'a> Metric<'a> {
     /// assert_eq!(m.name, "foo");
     /// assert_eq!(m.value(), Some(1.1));
     /// ```
-    pub fn new<S>(name: S, value: f64) -> Metric
+    pub fn new<S>(name: S, value: f64) -> Metric<'a>
         where S: Into<Cow<'a, str>>
     {
         let mut ckms = CKMS::new(0.001);
@@ -194,7 +194,7 @@ impl<'a> Metric<'a> {
     /// m = m.overlay_tag("foo", "22");
     /// assert_eq!(Some(&"22".into()), m.tags.get("foo".into()));
     /// ```
-    pub fn overlay_tag<S>(mut self, key: S, val: S) -> Metric
+    pub fn overlay_tag<S>(mut self, key: S, val: S) -> Metric<'a>
         where S: Into<String>
     {
         self.tags.insert(key.into(), val.into());
@@ -227,7 +227,7 @@ impl<'a> Metric<'a> {
     /// assert_eq!(Some(&"bar".into()), m.tags.get("foo".into()));
     /// assert_eq!(Some(&"rab".into()), m.tags.get("oof".into()));
     /// ```
-    pub fn overlay_tags_from_map(mut self, map: &TagMap) -> Metric {
+    pub fn overlay_tags_from_map(mut self, map: &TagMap) -> Metric<'a> {
         for (k, v) in map.iter() {
             self.tags.insert(k.clone(), v.clone());
         }
@@ -261,7 +261,7 @@ impl<'a> Metric<'a> {
     /// assert_eq!(Some(&"22".into()), m.tags.get("foo".into()));
     /// assert_eq!(Some(&"rab".into()), m.tags.get("oof".into()));
     /// ```
-    pub fn merge_tags_from_map(mut self, map: &TagMap) -> Metric {
+    pub fn merge_tags_from_map(mut self, map: &TagMap) -> Metric<'a> {
         for (k, v) in map.iter() {
             self.tags.entry(k.clone()).or_insert(v.clone());
         }
@@ -286,7 +286,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(m.value(), Some(10.10));
     /// ```
-    pub fn set_value(mut self, value: f64) -> Metric {
+    pub fn set_value(mut self, value: f64) -> Metric<'a> {
         self.value = CKMS::new(0.001);
         self.value.insert(value);
         self
@@ -332,7 +332,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(MetricKind::Counter, m.kind);
     /// ```
-    pub fn counter(mut self) -> Metric {
+    pub fn counter(mut self) -> Metric<'a> {
         self.kind = MetricKind::Counter;
         self
     }
@@ -351,7 +351,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(MetricKind::Gauge, m.kind);
     /// ```
-    pub fn gauge(mut self) -> Metric {
+    pub fn gauge(mut self) -> Metric<'a> {
         self.kind = match self.kind {
             MetricKind::DeltaGauge => MetricKind::DeltaGauge,
             _ => MetricKind::Gauge,
@@ -370,7 +370,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(MetricKind::DeltaGauge, m.kind);
     /// ```
-    pub fn delta_gauge(mut self) -> Metric {
+    pub fn delta_gauge(mut self) -> Metric<'a> {
         self.kind = MetricKind::DeltaGauge;
         self
     }
@@ -386,7 +386,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(MetricKind::DeltaGauge, m.kind);
     /// ```
-    pub fn timer(mut self) -> Metric {
+    pub fn timer(mut self) -> Metric<'a> {
         self.kind = MetricKind::Timer;
         self
     }
@@ -402,7 +402,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(MetricKind::Histogram, m.kind);
     /// ```
-    pub fn histogram(mut self) -> Metric {
+    pub fn histogram(mut self) -> Metric<'a> {
         self.kind = MetricKind::Histogram;
         self
     }
@@ -422,7 +422,7 @@ impl<'a> Metric<'a> {
     ///
     /// assert_eq!(10101, m.time);
     /// ```
-    pub fn time(mut self, time: i64) -> Metric {
+    pub fn time(mut self, time: i64) -> Metric<'a> {
         self.time = time;
         self
     }
@@ -594,8 +594,8 @@ mod tests {
         }
     }
 
-    impl Rand for Metric {
-        fn rand<R: Rng>(rng: &mut R) -> Metric {
+    impl Rand for Metric<'a> {
+        fn rand<R: Rng>(rng: &mut R) -> Metric<'a> {
             let name: String = rng.gen_ascii_chars().take(2).collect();
             let val: f64 = rng.gen();
             let kind: MetricKind = rng.gen();
@@ -629,8 +629,8 @@ mod tests {
         }
     }
 
-    impl Arbitrary for Metric {
-        fn arbitrary<G: Gen>(g: &mut G) -> Metric {
+    impl Arbitrary for Metric<'a> {
+        fn arbitrary<G: Gen>(g: &mut G) -> Metric<'a> {
             g.gen()
         }
     }

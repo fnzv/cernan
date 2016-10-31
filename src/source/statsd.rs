@@ -9,13 +9,13 @@ use time;
 use super::send;
 use source::Source;
 
-pub struct Statsd {
-    chans: Vec<mpsc::Sender<metric::Event>>,
+pub struct Statsd<'a> {
+    chans: Vec<mpsc::Sender<metric::Event<'a>>>,
     port: u16,
     tags: metric::TagMap,
 }
 
-impl Statsd {
+impl<'a> Statsd<'a> {
     pub fn new(chans: Vec<mpsc::Sender<metric::Event>>, port: u16, tags: metric::TagMap) -> Statsd {
         Statsd {
             chans: chans,
@@ -67,7 +67,7 @@ fn handle_udp(mut chans: Vec<mpsc::Sender<metric::Event>>,
     }
 }
 
-impl Source for Statsd {
+impl<'a> Source for Statsd<'a> {
     fn run(&mut self) {
         let mut joins = Vec::new();
 

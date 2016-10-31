@@ -3,16 +3,16 @@ use mpsc;
 use time;
 
 mod console;
-mod federation_transmitter;
-mod firehose;
-mod null;
-mod wavefront;
+// mod federation_transmitter;
+// mod firehose;
+// mod null;
+// mod wavefront;
 
 pub use self::console::Console;
-pub use self::federation_transmitter::FederationTransmitter;
-pub use self::firehose::Firehose;
-pub use self::null::Null;
-pub use self::wavefront::Wavefront;
+// pub use self::federation_transmitter::FederationTransmitter;
+// pub use self::firehose::Firehose;
+// pub use self::null::Null;
+// pub use self::wavefront::Wavefront;
 
 /// A 'sink' is a sink for metrics.
 pub trait Sink {
