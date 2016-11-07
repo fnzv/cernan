@@ -204,25 +204,27 @@ mod test {
                 bkt1.add(m);
             }
 
-            let mut ms0 : Vec<(&String, &Vec<Metric>)> = bkt0.gauges()
+            let mut ms0: Vec<(&String, &Vec<Metric>)> = bkt0.gauges()
                 .iter()
                 .chain(bkt0.counters().iter())
                 .chain(bkt0.raws().iter())
                 .chain(bkt0.histograms().iter())
-                .chain(bkt0.timers().iter()).collect();
-            let mut ms1 : Vec<(&String, &Vec<Metric>)> = bkt1.gauges()
+                .chain(bkt0.timers().iter())
+                .collect();
+            let mut ms1: Vec<(&String, &Vec<Metric>)> = bkt1.gauges()
                 .iter()
                 .chain(bkt1.counters().iter())
                 .chain(bkt1.raws().iter())
                 .chain(bkt1.histograms().iter())
-                .chain(bkt1.timers().iter()).collect();
+                .chain(bkt1.timers().iter())
+                .collect();
             ms0.sort_by_key(|m| m.0);
             ms1.sort_by_key(|m| m.0);
 
-            for (x,y) in ms0.iter().zip(ms1.iter()) {
+            for (x, y) in ms0.iter().zip(ms1.iter()) {
                 let xv = x.1;
                 let yv = y.1;
-                for (i,a) in xv.iter().enumerate() {
+                for (i, a) in xv.iter().enumerate() {
                     assert_eq!(a.name, yv[i].name);
                     assert_eq!(a.kind, yv[i].kind);
                     assert_eq!(a.query(1.0), yv[i].query(1.0));
