@@ -190,6 +190,7 @@ impl Metric {
             kind: MetricKind::Raw,
             name: name.into(),
             tags: TagMap::default(),
+            created_time: time::now(),
             time: time::now(),
             value: ckms,
         }
@@ -451,6 +452,11 @@ impl Metric {
     /// ```
     pub fn time(mut self, time: i64) -> Metric {
         self.time = time;
+        self
+    }
+
+    pub fn created_time(mut self, time: i64) -> Metric {
+        self.created_time = time;
         self
     }
 
