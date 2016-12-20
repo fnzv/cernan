@@ -56,24 +56,6 @@ impl Buckets {
         b
     }
 
-    /// Resets appropriate aggregates
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// extern crate cernan;
-    ///
-    /// let metric = cernan::metric::Metric::parse_statsd("foo:1|c").unwrap();
-    /// let mut buckets = cernan::buckets::Buckets::default();
-    /// let rname = String::from("foo");
-    ///
-    /// assert_eq!(true, buckets.counters().is_empty());
-    ///
-    /// buckets.add(metric[0].clone());
-    /// assert_eq!(false, buckets.counters().is_empty());
-    /// buckets.reset();
-    /// assert_eq!(true, buckets.counters().is_empty());
-    /// ```
     pub fn reset(&mut self) {
         self.counters.clear();
         self.raws.clear();
@@ -90,16 +72,6 @@ impl Buckets {
         }
     }
 
-    /// Adds a metric to the bucket storage.
-    ///
-    /// # Examples
-    /// ```
-    /// extern crate cernan;
-    ///
-    /// let metric = cernan::metric::Metric::parse_statsd("foo:1|c").unwrap();
-    /// let mut bucket = cernan::buckets::Buckets::default();
-    /// bucket.add(metric[0].clone());
-    /// ```
     pub fn add(&mut self, value: Metric) {
         let name = value.name.to_owned();
         let bkt = match value.kind {

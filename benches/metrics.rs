@@ -23,57 +23,73 @@ fn bench_merge_tags_from_map(b: &mut Bencher) {
 
 #[bench]
 fn bench_statsd_incr_gauge_no_sample(b: &mut Bencher) {
+    let inp = b"a.b:+12.1|g\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:+12.1|g\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_incr_gauge_with_sample(b: &mut Bencher) {
+    let inp = b"a.b:+12.1|g@2.2\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:+12.1|g@2.2\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_gauge_no_sample(b: &mut Bencher) {
+    let inp = b"a.b:12.1|g\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:12.1|g\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_gauge_mit_sample(b: &mut Bencher) {
+    let inp = b"a.b:12.1|g@0.22\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:12.1|g@0.22\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_counter_no_sample(b: &mut Bencher) {
+    let inp = b"a.b:12.1|c\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:12.1|c\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_counter_with_sample(b: &mut Bencher) {
+    let inp = b"a.b:12.1|c@1.0\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:12.1|c@1.0\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_timer(b: &mut Bencher) {
+    let inp = b"a.b:12.1|ms\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:12.1|ms\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 
 #[bench]
 fn bench_statsd_histogram(b: &mut Bencher) {
+    let inp = b"a.b:12.1|h\n";
+    let mut buf = Vec::new();
     b.iter(|| {
-        Metric::parse_statsd("a.b:12.1|h\n").unwrap();
+        Metric::parse_statsd(inp, inp.len(), &mut buf);
     });
 }
 

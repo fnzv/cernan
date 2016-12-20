@@ -3,10 +3,8 @@ use hopper;
 use std::net::{Ipv6Addr, UdpSocket, SocketAddrV6, SocketAddrV4, Ipv4Addr};
 use std::str;
 use std::thread;
-use std::time::Instant;
 use std::sync::Arc;
 
-use time;
 use super::send;
 use source::Source;
 
@@ -50,42 +48,26 @@ impl Statsd {
 fn handle_udp(mut chans: Vec<hopper::Sender<metric::Event>>,
               tags: Arc<metric::TagMap>,
               socket: UdpSocket) {
-    let mut buf = [0; 8192];
+    let mut buf: [u8; 8192] = [0; 8192];
+    let mut metrics: Vec<metric::Metric> = Vec::with_capacity(512);
     loop {
-        let recv_time = Instant::now();
         let (len, _) = match socket.recv_from(&mut buf) {
             Ok(r) => r,
             Err(_) => panic!("Could not read UDP socket."),
         };
-        trace!("recv time elapsed (ns): {}", time::elapsed_ns(recv_time));
-        str::from_utf8(&buf[..len])
-            .map(|val| {
-                trace!("{}", val);
-                let pyld_hndl_time = Instant::now();
-                match metric::Metric::parse_statsd(val) {
-                    Some(metrics) => {
-                        for mut m in metrics {
-                            m = m.overlay_tags_from_map(&tags);
-                            send("statsd", &mut chans, metric::Event::Telemetry(m));
-                        }
-                        let mut metric = metric::Metric::new("cernan.statsd.packet", 1.0).counter();
-                        metric = metric.overlay_tags_from_map(&tags);
-                        send("statsd", &mut chans, metric::Event::Telemetry(metric));
-                        trace!("payload handle effective, elapsed (ns): {}",
-                               time::elapsed_ns(pyld_hndl_time));
-                    }
-                    None => {
-                        let mut metric = metric::Metric::new("cernan.statsd.bad_packet", 1.0)
-                            .counter();
-                        metric = metric.overlay_tags_from_map(&tags);
-                        send("statsd", &mut chans, metric::Event::Telemetry(metric));
-                        error!("BAD PACKET: {:?}", val);
-                        trace!("payload handle failure, elapsed (ns): {}",
-                               time::elapsed_ns(pyld_hndl_time));
-                    }
+        match metric::Metric::parse_statsd(&buf, len, &mut metrics) {
+            true => {
+                // Ok(()) => {
+                for mut m in metrics.drain(..) {
+                    m = m.overlay_tags_from_map(&tags);
+                    send("statsd", &mut chans, metric::Event::Telemetry(m));
+                    let mut metric = metric::Metric::new("cernan.statsd.packet", 1.0).counter();
+                    metric = metric.overlay_tags_from_map(&tags);
+                    send("statsd", &mut chans, metric::Event::Telemetry(metric));
                 }
-            })
-            .ok();
+            }
+            false => error!("BAD PACKET: {:?}", str::from_utf8(&buf[..len])),
+        }
     }
 }
 

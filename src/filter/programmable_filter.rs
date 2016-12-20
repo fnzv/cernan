@@ -32,10 +32,7 @@ impl<'a> Payload<'a> {
         }
     }
 
-    fn from_log(l: metric::LogLine,
-                tags: &'a metric::TagMap,
-                path: &'a str)
-                -> Payload<'a> {
+    fn from_log(l: metric::LogLine, tags: &'a metric::TagMap, path: &'a str) -> Payload<'a> {
         Payload {
             metrics: Vec::new(),
             logs: vec![Box::new(l)],
@@ -451,7 +448,7 @@ impl filter::Filter for ProgrammableFilter {
                 self.state.call(1, 0);
 
                 Ok(pyld.logs
-                   .into_iter()
+                    .into_iter()
                     .map(|m| metric::Event::Log(*m))
                     .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(*m)))
                     .collect())
