@@ -16,7 +16,7 @@ fern = "0.3.5"
 flate2 = "0.2"
 fnv = "1.0.5"
 glob = "0.2.11"
-lua = "*"
+lua = "0.0.9"
 libc = "0.2"
 lazy_static = "0.2.1"
 log = "0.3.6"
@@ -27,7 +27,8 @@ serde = "0.8"
 serde_json = "0.8"
 toml = "0.2.0"
 uuid = {version = "0.2", features = ["v4"]}
-hopper = "0.1.0"
+hopper = "0.1"
+regex = "0.1"
 
 [dev-dependencies]
 tempdir = "0.3"

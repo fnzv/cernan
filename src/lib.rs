@@ -18,6 +18,7 @@ extern crate lua;
 extern crate libc;
 extern crate uuid;
 extern crate hopper;
+extern crate regex;
 
 pub mod sink;
 pub mod buckets;
