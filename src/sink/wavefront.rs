@@ -5,6 +5,8 @@ use buckets::Buckets;
 use sink::{Sink, Valve};
 use std::net::ToSocketAddrs;
 use time;
+use std::cmp;
+use std::string;
 
 pub struct Wavefront {
     host: String,
@@ -39,6 +41,20 @@ fn fmt_tags(tags: &TagMap, s: &mut String) -> () {
     }
 }
 
+#[inline]
+fn get_from_cache<'a, T>(cache: &'a mut Vec<(T, String)>, val: T) -> &'a str
+    where T: cmp::PartialOrd + string::ToString + Copy
+{
+    match cache.binary_search_by(|probe| probe.0.partial_cmp(&val).unwrap()) {
+        Ok(idx) => &cache[idx].1,
+        Err(idx) => {
+            let str_val = val.to_string();
+            cache.insert(idx, (val, str_val));
+            get_from_cache(cache, val)
+        }
+    }
+}
+
 impl Wavefront {
     pub fn new(config: WavefrontConfig) -> Wavefront {
         Wavefront {
@@ -53,6 +69,10 @@ impl Wavefront {
     /// Convert the buckets into a String that
     /// can be sent to the the wavefront proxy
     pub fn format_stats(&mut self, _: i64) -> () {
+        let mut time_cache: Vec<(i64, String)> = Vec::with_capacity(128);
+        let mut count_cache: Vec<(usize, String)> = Vec::with_capacity(128);
+        let mut value_cache: Vec<(f64, String)> = Vec::with_capacity(128);
+
         let flat_aggrs = self.aggrs
             .counters()
             .iter()
@@ -66,9 +86,9 @@ impl Wavefront {
                 if let Some(v) = m.value() {
                     self.stats.push_str(key);
                     self.stats.push_str(" ");
-                    self.stats.push_str(&v.to_string());
+                    self.stats.push_str(get_from_cache(&mut value_cache, v));
                     self.stats.push_str(" ");
-                    self.stats.push_str(&m.time.to_string());
+                    self.stats.push_str(get_from_cache(&mut time_cache, m.time));
                     self.stats.push_str(" ");
                     fmt_tags(&m.tags, &mut tag_buf);
                     self.stats.push_str(&tag_buf);
@@ -103,9 +123,10 @@ impl Wavefront {
                     self.stats.push_str(".");
                     self.stats.push_str(stat);
                     self.stats.push_str(" ");
-                    self.stats.push_str(&hist.query(quant).unwrap().to_string());
+                    self.stats
+                        .push_str(get_from_cache(&mut value_cache, hist.query(quant).unwrap()));
                     self.stats.push_str(" ");
-                    self.stats.push_str(&hist.time.to_string());
+                    self.stats.push_str(get_from_cache(&mut time_cache, hist.time));
                     self.stats.push_str(" ");
                     self.stats.push_str(&tag_buf);
                     self.stats.push_str("\n");
@@ -114,9 +135,9 @@ impl Wavefront {
                 self.stats.push_str(key);
                 self.stats.push_str(".count");
                 self.stats.push_str(" ");
-                self.stats.push_str(&count.to_string());
+                self.stats.push_str(get_from_cache(&mut count_cache, count));
                 self.stats.push_str(" ");
-                self.stats.push_str(&hist.time.to_string());
+                self.stats.push_str(get_from_cache(&mut time_cache, hist.time));
                 self.stats.push_str(" ");
                 self.stats.push_str(&tag_buf);
                 self.stats.push_str("\n");
