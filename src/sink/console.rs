@@ -1,7 +1,8 @@
-use sink::{Sink, Valve};
 use buckets::Buckets;
-use metric::{Metric, LogLine};
 use chrono;
+use metric::{LogLine, Metric};
+use sink::{Sink, Valve};
+use std::sync;
 
 pub struct Console {
     aggrs: Buckets,
@@ -34,14 +35,16 @@ fn fmt_line(key: &str, time: i64, value: f64) {
 }
 
 impl Sink for Console {
-    fn deliver(&mut self, point: Metric) -> Valve<Metric> {
-        self.aggrs.add(point);
+    fn valve_state(&self) -> Valve {
         Valve::Open
     }
 
-    fn deliver_line(&mut self, _: LogLine) -> Valve<LogLine> {
+    fn deliver(&mut self, point: sync::Arc<Metric>) -> () {
+        self.aggrs.add(point);
+    }
+
+    fn deliver_line(&mut self, _: sync::Arc<LogLine>) -> () {
         // drop the line, intentionally
-        Valve::Open
     }
 
     fn flush(&mut self) {

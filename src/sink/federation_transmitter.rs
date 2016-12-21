@@ -1,14 +1,15 @@
 use bincode::SizeLimit;
 use bincode::serde::serialize_into;
-use metric;
-use hopper;
-use sink::{Sink, Valve};
-use std::io::Write;
-use std::net::{TcpStream, ToSocketAddrs};
-use time;
 
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
+use hopper;
+use metric;
+use sink::{Sink, Valve};
+use std::io::Write;
+use std::net::{TcpStream, ToSocketAddrs};
+use std::sync;
+use time;
 
 pub struct FederationTransmitter {
     port: u16,
@@ -44,14 +45,20 @@ impl Default for FederationTransmitter {
 }
 
 impl Sink for FederationTransmitter {
-    fn deliver(&mut self, _: metric::Metric) -> Valve<metric::Metric> {
-        // intentionally nothing
-        Valve::Open
+    fn valve_state(&self) -> Valve {
+        if self.buffer.len() > 10_000 {
+            Valve::Open
+        } else {
+            Valve::Closed
+        }
     }
 
-    fn deliver_line(&mut self, _: metric::LogLine) -> Valve<metric::LogLine> {
+    fn deliver(&mut self, _: sync::Arc<metric::Metric>) -> () {
         // intentionally nothing
-        Valve::Open
+    }
+
+    fn deliver_line(&mut self, _: sync::Arc<metric::LogLine>) -> () {
+        // intentionally nothing
     }
 
     fn run(&mut self, mut recv: hopper::Receiver<metric::Event>) {

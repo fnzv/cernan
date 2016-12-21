@@ -3,9 +3,9 @@
 extern crate test;
 extern crate cernan;
 
-use self::test::Bencher;
 
 use cernan::metric::{Metric, TagMap};
+use self::test::Bencher;
 
 #[bench]
 fn bench_merge_tags_from_map(b: &mut Bencher) {

@@ -5,18 +5,18 @@ extern crate fern;
 extern crate log;
 extern crate hopper;
 
+use cernan::filter::{Filter, ProgrammableFilterConfig};
+use cernan::metric;
+use cernan::sink::{FirehoseConfig, Sink};
+use cernan::source::Source;
+use cernan::util;
+use chrono::UTC;
+use std::collections::HashMap;
+use std::process;
 use std::str;
 use std::thread;
-use std::process;
-use std::collections::HashMap;
-use chrono::UTC;
 
-use cernan::source::Source;
-use cernan::filter::{Filter, ProgrammableFilterConfig};
-use cernan::sink::{Sink, FirehoseConfig};
-use cernan::metric;
-
-fn populate_forwards(sends: &mut Vec<hopper::Sender<metric::Event>>,
+fn populate_forwards(sends: &mut util::Channel,
                      forwards: &[String],
                      config_path: &str,
                      available_sends: &HashMap<String, hopper::Sender<metric::Event>>) {
@@ -69,7 +69,7 @@ fn main() {
 
     info!("cernan - {}", args.version);
     let mut joins = Vec::new();
-    let mut sends = HashMap::new();
+    let mut sends: HashMap<String, hopper::Sender<metric::Event>> = HashMap::new();
 
     // SINKS
     //

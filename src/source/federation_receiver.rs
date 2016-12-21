@@ -2,19 +2,21 @@ use bincode::SizeLimit;
 use bincode::serde::deserialize_from;
 use flate2::read::ZlibDecoder;
 use metric;
-use hopper;
+use std::io::{BufReader, Take};
 use std::io::prelude::*;
-use std::io::{Take, BufReader};
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::str;
+use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
+use super::Source;
 
 use time;
-use super::{send, Source};
+use util;
+use util::send;
 
 pub struct FederationReceiver {
-    chans: Vec<hopper::Sender<metric::Event>>,
+    chans: util::Channel,
     ip: String,
     port: u16,
     tags: metric::TagMap,
@@ -30,9 +32,7 @@ pub struct FederationReceiverConfig {
 }
 
 impl FederationReceiver {
-    pub fn new(chans: Vec<hopper::Sender<metric::Event>>,
-               config: FederationReceiverConfig)
-               -> FederationReceiver {
+    pub fn new(chans: util::Channel, config: FederationReceiverConfig) -> FederationReceiver {
         FederationReceiver {
             chans: chans,
             ip: config.ip,
@@ -42,7 +42,7 @@ impl FederationReceiver {
     }
 }
 
-fn handle_tcp(chans: Vec<hopper::Sender<metric::Event>>,
+fn handle_tcp(chans: util::Channel,
               tags: metric::TagMap,
               listner: TcpListener)
               -> thread::JoinHandle<()> {
@@ -62,9 +62,7 @@ fn handle_tcp(chans: Vec<hopper::Sender<metric::Event>>,
     })
 }
 
-fn handle_stream(mut chans: Vec<hopper::Sender<metric::Event>>,
-                 tags: metric::TagMap,
-                 stream: TcpStream) {
+fn handle_stream(mut chans: util::Channel, tags: metric::TagMap, stream: TcpStream) {
     thread::spawn(move || {
         let mut sz_buf = [0; 4];
         let mut reader = BufReader::new(stream);
@@ -80,22 +78,22 @@ fn handle_stream(mut chans: Vec<hopper::Sender<metric::Event>>,
                                          Vec<metric::Event>>(&mut e, SizeLimit::Infinite) {
                     Ok(events) => {
                         trace!("total events in payload: {}", events.len());
-                        for mut ev in events {
+                        for  ev in events.into_iter() {
                             trace!("event: {:?}", ev);
-                            ev = match ev {
-                                metric::Event::Telemetry(m) => {
-                                    metric::Event::Telemetry(m.merge_tags_from_map(&tags))
-                                }
-                                // we refuse to accept any non-telemetry forward
-                                // for now
-                                _ => continue,
-                            };
+                            // ev = match ev {
+                            //     metric::Event::Telemetry(mut m) => {
+                            //         metric::Event::Telemetry(Arc::new(Arc::make_mut(&mut m).merge_tags_from_map(&tags)))
+                            //     }
+                            //     // we refuse to accept any non-telemetry forward
+                            //     // for now
+                            //     _ => continue,
+                            // };
                             send("receiver", &mut chans, ev);
                         }
                         let metric = metric::Metric::new("cernan.federation.receiver.packet", 1.0)
                             .counter()
                             .overlay_tags_from_map(&tags);
-                        send("receiver", &mut chans, metric::Event::Telemetry(metric));
+                        send("receiver", &mut chans, metric::Event::Telemetry(Arc::new(metric)));
                     }
                     Err(e) => {
                         trace!("failed to decode payload with error: {:?}", e);

@@ -3,23 +3,23 @@
 //! Used to parse the argv/config file into a struct that
 //! the server can consume and use as configuration data.
 
-use clap::{Arg, App};
-use std::fs::File;
-use toml;
-use toml::Value;
-use std::io::Read;
-use std::str::FromStr;
+use clap::{App, Arg};
 use metric::TagMap;
-use std::path::{Path, PathBuf};
 use rusoto::Region;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use toml;
+use toml::Value;
 
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
-use super::source::{FederationReceiverConfig, GraphiteConfig, StatsdConfig, FileServerConfig};
-use super::sink::{WavefrontConfig, ConsoleConfig, FederationTransmitterConfig, NullConfig,
-                  FirehoseConfig};
 use super::filter::ProgrammableFilterConfig;
+use super::sink::{ConsoleConfig, FederationTransmitterConfig, FirehoseConfig, NullConfig,
+                  WavefrontConfig};
+use super::source::{FederationReceiverConfig, FileServerConfig, GraphiteConfig, StatsdConfig};
 
 #[derive(Debug)]
 pub struct Args {
@@ -595,11 +595,11 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use metric::TagMap;
-    use std::path::{PathBuf, Path};
-    use rusoto::Region;
     use filter::ProgrammableFilterConfig;
+    use metric::TagMap;
+    use rusoto::Region;
+    use std::path::{Path, PathBuf};
+    use super::*;
 
     #[test]
     fn config_file_data_directory() {

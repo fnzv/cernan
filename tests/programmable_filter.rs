@@ -3,7 +3,7 @@ mod integration {
 
         extern crate cernan;
 
-        use self::cernan::filter::{Filter, ProgrammableFilterConfig, ProgrammableFilter};
+        use self::cernan::filter::{Filter, ProgrammableFilter, ProgrammableFilterConfig};
         use self::cernan::metric;
         use std::path::PathBuf;
 

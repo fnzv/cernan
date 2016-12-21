@@ -1,15 +1,15 @@
 use metric;
-use hopper;
-use std::net::{Ipv6Addr, UdpSocket, SocketAddrV6, SocketAddrV4, Ipv4Addr};
-use std::str;
-use std::thread;
-use std::sync::Arc;
-
-use super::send;
 use source::Source;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6, UdpSocket};
+use std::str;
+use std::sync::Arc;
+use std::thread;
+
+use util;
+use util::send;
 
 pub struct Statsd {
-    chans: Vec<hopper::Sender<metric::Event>>,
+    chans: util::Channel,
     port: u16,
     tags: Arc<metric::TagMap>,
 }
@@ -36,7 +36,7 @@ impl Default for StatsdConfig {
 }
 
 impl Statsd {
-    pub fn new(chans: Vec<hopper::Sender<metric::Event>>, config: StatsdConfig) -> Statsd {
+    pub fn new(chans: util::Channel, config: StatsdConfig) -> Statsd {
         Statsd {
             chans: chans,
             port: config.port,
@@ -45,9 +45,7 @@ impl Statsd {
     }
 }
 
-fn handle_udp(mut chans: Vec<hopper::Sender<metric::Event>>,
-              tags: Arc<metric::TagMap>,
-              socket: UdpSocket) {
+fn handle_udp(mut chans: util::Channel, tags: Arc<metric::TagMap>, socket: UdpSocket) {
     let mut buf = [0; 8192];
     loop {
         let (len, _) = match socket.recv_from(&mut buf) {
@@ -60,17 +58,21 @@ fn handle_udp(mut chans: Vec<hopper::Sender<metric::Event>>,
                     Some(metrics) => {
                         for mut m in metrics {
                             m = m.overlay_tags_from_map(&tags);
-                            send("statsd", &mut chans, metric::Event::Telemetry(m));
+                            send("statsd", &mut chans, metric::Event::Telemetry(Arc::new(m)));
                         }
                         let mut metric = metric::Metric::new("cernan.statsd.packet", 1.0).counter();
                         metric = metric.overlay_tags_from_map(&tags);
-                        send("statsd", &mut chans, metric::Event::Telemetry(metric));
+                        send("statsd",
+                             &mut chans,
+                             metric::Event::Telemetry(Arc::new(metric)));
                     }
                     None => {
                         let mut metric = metric::Metric::new("cernan.statsd.bad_packet", 1.0)
                             .counter();
                         metric = metric.overlay_tags_from_map(&tags);
-                        send("statsd", &mut chans, metric::Event::Telemetry(metric));
+                        send("statsd",
+                             &mut chans,
+                             metric::Event::Telemetry(Arc::new(metric)));
                         error!("BAD PACKET: {:?}", val);
                     }
                 }

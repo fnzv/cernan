@@ -1,6 +1,7 @@
-use time;
-use std::str::FromStr;
 use quantiles::CKMS;
+use std::str::FromStr;
+use std::sync;
+use time;
 
 mod tagmap;
 
@@ -9,8 +10,8 @@ pub use self::tagmap::cmp;
 include!(concat!(env!("OUT_DIR"), "/metric_types.rs"));
 
 use std::cmp::{Ordering, PartialOrd};
-use std::ops::AddAssign;
 use std::fmt;
+use std::ops::AddAssign;
 
 pub type TagMap = self::tagmap::TagMap<String, String>;
 
@@ -88,7 +89,7 @@ impl MetricValue {
             MetricValueKind::Many => {
                 match self.many.as_mut() {
                     None => {}
-                    Some(ckms) => *ckms += value, 
+                    Some(ckms) => *ckms += value,
                 };
             }
         }
@@ -96,9 +97,7 @@ impl MetricValue {
 
     fn last(&self) -> Option<f64> {
         match self.kind {
-            MetricValueKind::Single => {
-                self.single
-            }
+            MetricValueKind::Single => self.single,
             MetricValueKind::Many => {
                 match self.many {
                     Some(ref ckms) => ckms.last(),
@@ -110,9 +109,7 @@ impl MetricValue {
 
     fn sum(&self) -> Option<f64> {
         match self.kind {
-            MetricValueKind::Single => {
-                self.single
-            }
+            MetricValueKind::Single => self.single,
             MetricValueKind::Many => {
                 match self.many {
                     Some(ref ckms) => ckms.sum(),
@@ -124,9 +121,7 @@ impl MetricValue {
 
     fn count(&self) -> usize {
         match self.kind {
-            MetricValueKind::Single => {
-                1
-            }
+            MetricValueKind::Single => 1,
             MetricValueKind::Many => {
                 match self.many {
                     Some(ref ckms) => ckms.count(),
@@ -138,9 +133,7 @@ impl MetricValue {
 
     fn query(&self, query: f64) -> Option<(usize, f64)> {
         match self.kind {
-            MetricValueKind::Single => {
-                Some((1 as usize, self.single.unwrap()))
-            }
+            MetricValueKind::Single => Some((1 as usize, self.single.unwrap())),
             MetricValueKind::Many => {
                 match self.many {
                     Some(ref ckms) => ckms.query(query),
@@ -198,6 +191,19 @@ impl PartialOrd for Metric {
                 }
             }
             other => other,
+        }
+    }
+}
+
+impl Default for Metric {
+    fn default() -> Metric {
+        Metric {
+            kind: MetricKind::Raw,
+            name: "".to_string(),
+            tags: TagMap::default(),
+            created_time: time::now(),
+            time: time::now(),
+            value: MetricValue::new(0.0),
         }
     }
 }
@@ -625,9 +631,9 @@ mod tests {
     extern crate rand;
     extern crate quickcheck;
 
-    use metric::{Metric, MetricKind, Event};
-    use self::quickcheck::{Arbitrary, Gen, TestResult, QuickCheck};
-    use chrono::{UTC, TimeZone};
+    use chrono::{TimeZone, UTC};
+    use metric::{Event, Metric, MetricKind};
+    use self::quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
     use self::rand::{Rand, Rng};
     use std::cmp::Ordering;
 

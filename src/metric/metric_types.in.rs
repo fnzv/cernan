@@ -18,8 +18,8 @@ pub struct Metric {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub enum Event {
-    Telemetry(Metric),
-    Log(LogLine),
+    Telemetry(sync::Arc<Metric>),
+    Log(sync::Arc<LogLine>),
     TimerFlush,
 }
 

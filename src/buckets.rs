@@ -3,23 +3,25 @@
 //! Each bucket contains a set of hashmaps containing
 //! each set of metrics received by clients.
 
+use fnv::FnvHasher;
 use metric::{Metric, MetricKind};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
-use fnv::FnvHasher;
+use std::mem;
+use std::sync;
 use time;
 
 pub type HashMapFnv<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
+pub type AggrMap = HashMapFnv<String, Vec<Metric>>;
 
 /// Buckets stores all metrics until they are flushed.
 pub struct Buckets {
-    counters: HashMapFnv<String, Vec<Metric>>,
-    gauges: HashMapFnv<String, Vec<Metric>>,
-    delta_gauges: HashMapFnv<String, Vec<Metric>>,
-    raws: HashMapFnv<String, Vec<Metric>>,
-
-    timers: HashMapFnv<String, Vec<Metric>>,
-    histograms: HashMapFnv<String, Vec<Metric>>,
+    counters: AggrMap,
+    delta_gauges: AggrMap,
+    gauges: AggrMap,
+    histograms: AggrMap,
+    raws: AggrMap,
+    timers: AggrMap,
 
     bin_width: i64,
 }
@@ -100,7 +102,7 @@ impl Buckets {
     /// let mut bucket = cernan::buckets::Buckets::default();
     /// bucket.add(metric[0].clone());
     /// ```
-    pub fn add(&mut self, value: Metric) {
+    pub fn add(&mut self, mut value: sync::Arc<Metric>) {
         let name = value.name.to_owned();
         let bkt = match value.kind {
             MetricKind::Counter => &mut self.counters,
@@ -112,6 +114,7 @@ impl Buckets {
         };
         let hsh = bkt.entry(name).or_insert_with(|| vec![]);
         let bin_width = self.bin_width;
+        let value = mem::replace(sync::Arc::make_mut(&mut value), Default::default());
         match hsh.binary_search_by(|probe| probe.within(bin_width, &value)) {
             Ok(idx) => hsh[idx] += value,
             Err(idx) => {
@@ -131,27 +134,32 @@ impl Buckets {
         }
     }
 
-    pub fn counters(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn count(&self) -> u64 {
+        (self.counters.len() + self.gauges.len() + self.delta_gauges.len() +
+         self.raws.len() + self.timers.len() + self.histograms.len()) as u64
+    }
+
+    pub fn counters(&self) -> &AggrMap {
         &self.counters
     }
 
-    pub fn gauges(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn gauges(&self) -> &AggrMap {
         &self.gauges
     }
 
-    pub fn delta_gauges(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn delta_gauges(&self) -> &AggrMap {
         &self.delta_gauges
     }
 
-    pub fn raws(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn raws(&self) -> &AggrMap {
         &self.raws
     }
 
-    pub fn histograms(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn histograms(&self) -> &AggrMap {
         &self.histograms
     }
 
-    pub fn timers(&self) -> &HashMapFnv<String, Vec<Metric>> {
+    pub fn timers(&self) -> &AggrMap {
         &self.timers
     }
 }
@@ -162,12 +170,12 @@ impl Buckets {
 mod test {
     extern crate quickcheck;
 
-    use super::*;
-    use self::quickcheck::{TestResult, QuickCheck};
+    use chrono::{TimeZone, UTC};
     use metric::{Metric, MetricKind};
-    use std::collections::{HashSet, HashMap};
-    use chrono::{UTC, TimeZone};
+    use self::quickcheck::{QuickCheck, TestResult};
     use std::cmp::Ordering;
+    use std::collections::{HashMap, HashSet};
+    use super::*;
 
     fn within(width: i64, lhs: i64, rhs: i64) -> bool {
         (lhs / width) == (rhs / width)

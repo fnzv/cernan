@@ -1,12 +1,13 @@
-use std::net::TcpStream;
-use std::io::Write as IoWrite;
-use metric::{Metric, LogLine, TagMap};
 use buckets::Buckets;
+use metric::{LogLine, Metric, TagMap};
 use sink::{Sink, Valve};
-use std::net::ToSocketAddrs;
-use time;
 use std::cmp;
+use std::io::Write as IoWrite;
+use std::net::TcpStream;
+use std::net::ToSocketAddrs;
 use std::string;
+use std::sync;
+use time;
 
 pub struct Wavefront {
     host: String,
@@ -193,14 +194,20 @@ impl Sink for Wavefront {
         }
     }
 
-    fn deliver(&mut self, point: Metric) -> Valve<Metric> {
+    fn deliver(&mut self, point: sync::Arc<Metric>) -> () {
         self.aggrs.add(point);
-        Valve::Open
     }
 
-    fn deliver_line(&mut self, _: LogLine) -> Valve<LogLine> {
+    fn deliver_line(&mut self, _: sync::Arc<LogLine>) -> () {
         // nothing, intentionally
-        Valve::Open
+    }
+
+    fn valve_state(&self) -> Valve {
+        if self.aggrs.count() > 10_000 {
+            Valve::Closed
+        } else {
+            Valve::Open
+        }
     }
 }
 
@@ -208,9 +215,9 @@ impl Sink for Wavefront {
 mod test {
     extern crate quickcheck;
 
+    use chrono::{TimeZone, UTC};
     use metric::{Metric, TagMap};
     use sink::Sink;
-    use chrono::{UTC, TimeZone};
     use super::*;
 
     #[test]

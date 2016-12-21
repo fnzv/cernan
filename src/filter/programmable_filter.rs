@@ -1,14 +1,16 @@
 use filter;
-use metric;
+use libc::c_int;
 
 use lua;
+use lua::{Function, State, ThreadStatus};
 use lua::ffi::lua_State;
-use lua::{State, Function, ThreadStatus};
-use libc::c_int;
+use metric;
+use std::sync;
 use std::path::PathBuf;
 
 struct Payload<'a> {
-    metrics: Vec<Box<metric::Metric>>,
+    metrics: Vec<Box<metric::Metric>>, // TODO if we switch from Box to Arc we
+ // might be better off
     logs: Vec<Box<metric::LogLine>>,
     global_tags: &'a metric::TagMap,
     path: &'a str,
@@ -23,26 +25,24 @@ fn idx(n: i64, top: usize) -> usize {
 }
 
 impl<'a> Payload<'a> {
-    fn from_metric(m: metric::Metric, tags: &'a metric::TagMap, path: &'a str) -> Payload<'a> {
-        Payload {
-            metrics: vec![Box::new(m)],
-            logs: Vec::new(),
-            global_tags: tags,
-            path: path,
-        }
-    }
+    // fn from_metric(m: metric::Metric, tags: &'a metric::TagMap, path: &'a str) -> Payload<'a> {
+    //     Payload {
+    //         metrics: vec![Box::new(m)],
+    //         logs: Vec::new(),
+    //         global_tags: tags,
+    //         path: path,
+    //     }
+    // }
 
-    fn from_log(l: metric::LogLine,
-                tags: &'a metric::TagMap,
-                path: &'a str)
-                -> Payload<'a> {
-        Payload {
-            metrics: Vec::new(),
-            logs: vec![Box::new(l)],
-            global_tags: tags,
-            path: path,
-        }
-    }
+    // fn from_log(l: metric::LogLine, tags: &'a metric::TagMap, path: &'a str) -> Payload<'a> {
+    //     Payload {
+    //         metrics: Vec::new(),
+    //         logs: vec![Box::new(l)],
+    //         global_tags: tags,
+    //         path: path,
+    //     }
+
+    // }
 
     fn blank(tags: &'a metric::TagMap, path: &'a str) -> Payload<'a> {
         Payload {
@@ -373,43 +373,44 @@ impl filter::Filter for ProgrammableFilter {
                    event: metric::Event)
                    -> Result<Vec<metric::Event>, filter::FilterError> {
         match event {
-            metric::Event::Telemetry(m) => {
+            metric::Event::Telemetry(_) => {
                 self.state.get_global("process_metric");
                 if !self.state.is_fn(-1) {
                     let fail =
-                        metric::Event::Telemetry(metric::Metric::new(format!("cernan.filture.\
+                        metric::Event::Telemetry(sync::Arc::new(metric::Metric::new(format!("cernan.filture.\
                                                                               {}.process_metric.\
                                                                               failure",
                                                                              self.path),
                                                                      1.0)
-                            .counter());
+                            .counter()));
                     return Err(filter::FilterError::NoSuchFunction("process_metric", fail));
                 }
 
-                let mut pyld = Payload::from_metric(m, &self.global_tags, self.path.as_str());
-                unsafe {
-                    self.state.push_light_userdata::<Payload>(&mut pyld);
-                }
-                self.state.get_metatable_from_registry("payload");
-                self.state.set_metatable(-2);
+                // let mut pyld = Payload::from_metric(*sync::Arc::make_mut(&mut m), &self.global_tags, self.path.as_str());
+                // unsafe {
+                //     self.state.push_light_userdata::<Payload>(&mut pyld);
+                // }
+                // self.state.get_metatable_from_registry("payload");
+                // self.state.set_metatable(-2);
 
-                self.state.call(1, 0);
+                // self.state.call(1, 0);
 
-                Ok(pyld.logs
-                    .into_iter()
-                    .map(|m| metric::Event::Log(*m))
-                    .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(*m)))
-                    .collect())
+                // Ok(pyld.logs
+                //     .into_iter()
+                //     .map(|m| metric::Event::Log(sync::Arc::new(*m)))
+                //     .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(sync::Arc::new(*m))))
+                //     .collect())
+                Ok(Vec::new())
             }
             metric::Event::TimerFlush => {
                 self.state.get_global("tick");
                 if !self.state.is_fn(-1) {
                     let fail =
-                        metric::Event::Telemetry(metric::Metric::new(format!("cernan.filter.{}.\
+                        metric::Event::Telemetry(sync::Arc::new(metric::Metric::new(format!("cernan.filter.{}.\
                                                                               tick.failure",
                                                                              self.path),
                                                                      1.0)
-                            .counter());
+                            .counter()));
                     return Err(filter::FilterError::NoSuchFunction("tick", fail));
                 }
 
@@ -424,37 +425,38 @@ impl filter::Filter for ProgrammableFilter {
 
                 Ok(pyld.logs
                     .into_iter()
-                    .map(|m| metric::Event::Log(*m))
-                    .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(*m)))
+                    .map(|m| metric::Event::Log(sync::Arc::new(*m)))
+                    .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(sync::Arc::new(*m))))
                     .collect())
             }
-            metric::Event::Log(l) => {
+            metric::Event::Log(_) => {
                 self.state.get_global("process_log");
                 if !self.state.is_fn(-1) {
                     let fail =
-                        metric::Event::Telemetry(metric::Metric::new(format!("cernan.filter.{}.\
+                        metric::Event::Telemetry(sync::Arc::new(metric::Metric::new(format!("cernan.filter.{}.\
                                                                               process_log.\
                                                                               failure",
                                                                              self.path),
                                                                      1.0)
-                            .counter());
+                            .counter()));
                     return Err(filter::FilterError::NoSuchFunction("process_log", fail));
                 }
 
-                let mut pyld = Payload::from_log(l, &self.global_tags, self.path.as_str());
-                unsafe {
-                    self.state.push_light_userdata::<Payload>(&mut pyld);
-                }
-                self.state.get_metatable_from_registry("payload");
-                self.state.set_metatable(-2);
+                // let mut pyld = Payload::from_log(*sync::Arc::make_mut(&mut l), &self.global_tags, self.path.as_str());
+                // unsafe {
+                //     self.state.push_light_userdata::<Payload>(&mut pyld);
+                // }
+                // self.state.get_metatable_from_registry("payload");
+                // self.state.set_metatable(-2);
 
-                self.state.call(1, 0);
+                // self.state.call(1, 0);
 
-                Ok(pyld.logs
-                   .into_iter()
-                    .map(|m| metric::Event::Log(*m))
-                    .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(*m)))
-                    .collect())
+                // Ok(pyld.logs
+                //     .into_iter()
+                //     .map(|m| metric::Event::Log(sync::Arc::new(*m)))
+                //     .chain(pyld.metrics.into_iter().map(|m| metric::Event::Telemetry(sync::Arc::new(*m))))
+                //     .collect())
+                Ok(Vec::new())
             }
         }
     }
