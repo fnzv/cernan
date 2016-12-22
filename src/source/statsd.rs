@@ -47,6 +47,7 @@ impl Statsd {
 
 fn handle_udp(mut chans: util::Channel, tags: Arc<metric::TagMap>, socket: UdpSocket) {
     let mut buf = [0; 8192];
+    let basic_metric = Arc::new(Some(metric::Metric::default().overlay_tags_from_map(&tags)));
     loop {
         let (len, _) = match socket.recv_from(&mut buf) {
             Ok(r) => r,
@@ -54,10 +55,9 @@ fn handle_udp(mut chans: util::Channel, tags: Arc<metric::TagMap>, socket: UdpSo
         };
         str::from_utf8(&buf[..len])
             .map(|val| {
-                match metric::Metric::parse_statsd(val) {
+                match metric::Metric::parse_statsd(val, basic_metric.clone()) {
                     Some(metrics) => {
-                        for mut m in metrics {
-                            m = m.overlay_tags_from_map(&tags);
+                        for m in metrics {
                             send("statsd", &mut chans, metric::Event::new_telemetry(m));
                         }
                         let mut metric = metric::Metric::new("cernan.statsd.packet", 1.0).counter();

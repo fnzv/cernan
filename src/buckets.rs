@@ -63,13 +63,13 @@ impl Buckets {
     /// ```
     /// extern crate cernan;
     ///
-    /// let metric = cernan::metric::Metric::parse_statsd("foo:1|c").unwrap();
+    /// let metric = cernan::metric::Metric::new("foo", 1.0).counter();
     /// let mut buckets = cernan::buckets::Buckets::default();
     /// let rname = String::from("foo");
     ///
     /// assert_eq!(true, buckets.counters().is_empty());
     ///
-    /// buckets.add(metric[0].clone());
+    /// buckets.add(metric);
     /// assert_eq!(false, buckets.counters().is_empty());
     /// buckets.reset();
     /// assert_eq!(true, buckets.counters().is_empty());
@@ -96,9 +96,9 @@ impl Buckets {
     /// ```
     /// extern crate cernan;
     ///
-    /// let metric = cernan::metric::Metric::parse_statsd("foo:1|c").unwrap();
+    /// let metric = cernan::metric::Metric::new("foo", 1.0).counter();
     /// let mut bucket = cernan::buckets::Buckets::default();
-    /// bucket.add(metric[0].clone());
+    /// bucket.add(metric);
     /// ```
     pub fn add(&mut self, value: Metric) {
         let name = value.name.to_owned();
