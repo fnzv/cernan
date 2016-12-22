@@ -39,11 +39,11 @@ impl Sink for Console {
         Valve::Open
     }
 
-    fn deliver(&mut self, point: sync::Arc<Metric>) -> () {
-        self.aggrs.add(point);
+    fn deliver(&mut self, mut point: sync::Arc<Option<Metric>>) -> () {
+        self.aggrs.add(sync::Arc::make_mut(&mut point).take().unwrap());
     }
 
-    fn deliver_line(&mut self, _: sync::Arc<LogLine>) -> () {
+    fn deliver_line(&mut self, _: sync::Arc<Option<LogLine>>) -> () {
         // drop the line, intentionally
     }
 

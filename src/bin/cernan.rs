@@ -101,16 +101,6 @@ fn main() {
             cernan::sink::Wavefront::new(config).run(wf_recv);
         }));
     }
-    if let Some(config) = args.fed_transmitter {
-        let (cernan_send, cernan_recv) = hopper::channel(&config.config_path, &args.data_directory)
-            .unwrap();
-        flush_sends.push(cernan_send.clone());
-        sends.insert(config.config_path.clone(), cernan_send);
-        joins.push(thread::spawn(move || {
-            cernan::sink::FederationTransmitter::new(config).run(cernan_recv);
-        }));
-    }
-
     for config in &args.firehosen {
         let f: FirehoseConfig = config.clone();
         let (firehose_send, firehose_recv) =
@@ -141,17 +131,6 @@ fn main() {
 
     // SOURCES
     //
-    if let Some(config) = args.fed_receiver_config {
-        let mut receiver_server_send = Vec::new();
-        populate_forwards(&mut receiver_server_send,
-                          &config.forwards,
-                          &config.config_path,
-                          &sends);
-        joins.push(thread::spawn(move || {
-            cernan::source::FederationReceiver::new(receiver_server_send, config).run();
-        }))
-    }
-
     for config in args.statsds.values() {
         let c = (*config).clone();
         let mut statsd_sends = Vec::new();

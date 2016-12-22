@@ -88,12 +88,12 @@ fn handle_stream(mut chans: util::Channel, tags: Arc<metric::TagMap>, stream: Tc
                                         .overlay_tags_from_map(&tags);
                                     send("graphite",
                                          &mut chans,
-                                         metric::Event::Telemetry(Arc::new(metric)));
+                                         metric::Event::Telemetry(Arc::new(Some(metric))));
                                     for mut m in metrics {
                                         m = m.overlay_tags_from_map(&tags);
                                         send("graphite",
                                              &mut chans,
-                                             metric::Event::Telemetry(Arc::new(m)));
+                                             metric::Event::Telemetry(Arc::new(Some(m))));
                                     }
                                     trace!("payload handle effective, elapsed (ns): {}",
                                            time::elapsed_ns(pyld_hndl_time));
@@ -105,7 +105,7 @@ fn handle_stream(mut chans: util::Channel, tags: Arc<metric::TagMap>, stream: Tc
                                         .overlay_tags_from_map(&tags);
                                     send("graphite",
                                          &mut chans,
-                                         metric::Event::Telemetry(Arc::new(metric)));
+                                         metric::Event::Telemetry(Arc::new(Some(metric))));
                                     error!("bad packet: {:?}", val);
                                     trace!("payload handle failure, elapsed (ns): {}",
                                            time::elapsed_ns(pyld_hndl_time));

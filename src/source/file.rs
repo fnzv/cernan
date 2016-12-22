@@ -10,7 +10,6 @@ use std::io::prelude::*;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::str;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use time;
@@ -169,7 +168,7 @@ impl Source for FileServer {
                     }
                     if !lines.is_empty() {
                         for l in lines {
-                            send("file", &mut self.chans, metric::Event::Log(Arc::new(l)));
+                            send("file", &mut self.chans, metric::Event::new_log(l));
                         }
                         lines = Vec::new();
                     }

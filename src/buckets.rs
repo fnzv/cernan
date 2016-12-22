@@ -7,8 +7,6 @@ use fnv::FnvHasher;
 use metric::{Metric, MetricKind};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
-use std::mem;
-use std::sync;
 use time;
 
 pub type HashMapFnv<K, V> = HashMap<K, V, BuildHasherDefault<FnvHasher>>;
@@ -102,7 +100,7 @@ impl Buckets {
     /// let mut bucket = cernan::buckets::Buckets::default();
     /// bucket.add(metric[0].clone());
     /// ```
-    pub fn add(&mut self, mut value: sync::Arc<Metric>) {
+    pub fn add(&mut self, value: Metric) {
         let name = value.name.to_owned();
         let bkt = match value.kind {
             MetricKind::Counter => &mut self.counters,
@@ -114,7 +112,6 @@ impl Buckets {
         };
         let hsh = bkt.entry(name).or_insert_with(|| vec![]);
         let bin_width = self.bin_width;
-        let value = mem::replace(sync::Arc::make_mut(&mut value), Default::default());
         match hsh.binary_search_by(|probe| probe.within(bin_width, &value)) {
             Ok(idx) => hsh[idx] += value,
             Err(idx) => {

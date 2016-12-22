@@ -122,11 +122,11 @@ impl Sink for Firehose {
         self.buffer.clear();
     }
 
-    fn deliver(&mut self, _: sync::Arc<Metric>) -> () {
+    fn deliver(&mut self, _: sync::Arc<Option<Metric>>) -> () {
         // nothing, intentionally
     }
 
-    fn deliver_line(&mut self, _: sync::Arc<LogLine>) -> () {
+    fn deliver_line(&mut self, _: sync::Arc<Option<LogLine>>) -> () {
         // nothing, intentionally
     }
 

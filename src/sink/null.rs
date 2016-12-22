@@ -27,11 +27,11 @@ impl Sink for Null {
         Valve::Open
     }
 
-    fn deliver(&mut self, _: sync::Arc<Metric>) -> () {
+    fn deliver(&mut self, _: sync::Arc<Option<Metric>>) -> () {
         // discard point
     }
 
-    fn deliver_line(&mut self, _: sync::Arc<LogLine>) -> () {
+    fn deliver_line(&mut self, _: sync::Arc<Option<LogLine>>) -> () {
         // discard point
     }
 

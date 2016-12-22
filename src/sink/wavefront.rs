@@ -194,11 +194,11 @@ impl Sink for Wavefront {
         }
     }
 
-    fn deliver(&mut self, point: sync::Arc<Metric>) -> () {
-        self.aggrs.add(point);
+    fn deliver(&mut self, mut point: sync::Arc<Option<Metric>>) -> () {
+        self.aggrs.add(sync::Arc::make_mut(&mut point).take().unwrap());
     }
 
-    fn deliver_line(&mut self, _: sync::Arc<LogLine>) -> () {
+    fn deliver_line(&mut self, _: sync::Arc<Option<LogLine>>) -> () {
         // nothing, intentionally
     }
 
@@ -218,6 +218,7 @@ mod test {
     use chrono::{TimeZone, UTC};
     use metric::{Metric, TagMap};
     use sink::Sink;
+    use std::sync::Arc;
     use super::*;
 
     #[test]
@@ -235,50 +236,50 @@ mod test {
         let dt_0 = UTC.ymd(1990, 6, 12).and_hms_milli(9, 10, 11, 00).timestamp();
         let dt_1 = UTC.ymd(1990, 6, 12).and_hms_milli(9, 10, 12, 00).timestamp();
         let dt_2 = UTC.ymd(1990, 6, 12).and_hms_milli(9, 10, 13, 00).timestamp();
-        wavefront.deliver(Metric::new("test.counter", -1.0)
+        wavefront.deliver(Arc::new(Some(Metric::new("test.counter", -1.0)
             .time(dt_0)
             .counter()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.counter", 2.0)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.counter", 2.0)
             .time(dt_0)
             .counter()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.counter", 3.0)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.counter", 3.0)
             .time(dt_1)
             .counter()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.gauge", 3.211)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.gauge", 3.211)
             .time(dt_0)
             .gauge()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.gauge", 4.322)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.gauge", 4.322)
             .time(dt_1)
             .gauge()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.gauge", 5.433)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.gauge", 5.433)
             .time(dt_2)
             .gauge()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.timer", 12.101)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.timer", 12.101)
             .time(dt_0)
             .timer()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.timer", 1.101)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.timer", 1.101)
             .time(dt_0)
             .timer()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.timer", 3.101)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.timer", 3.101)
             .time(dt_0)
             .timer()
-            .overlay_tags_from_map(&tags));
-        wavefront.deliver(Metric::new("test.raw", 1.0)
+            .overlay_tags_from_map(&tags))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.raw", 1.0)
             .time(dt_0)
             .overlay_tags_from_map(&tags)
-            .created_time(dt_0));
-        wavefront.deliver(Metric::new("test.raw", 2.0)
+            .created_time(dt_0))));
+        wavefront.deliver(Arc::new(Some(Metric::new("test.raw", 2.0)
             .time(dt_1)
             .overlay_tags_from_map(&tags)
-            .created_time(dt_0));
+            .created_time(dt_0))));
         wavefront.format_stats(dt_2);
         let lines: Vec<&str> = wavefront.stats.lines().collect();
 

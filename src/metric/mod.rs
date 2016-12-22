@@ -208,6 +208,18 @@ impl Default for Metric {
     }
 }
 
+impl Event {
+    #[inline]
+    pub fn new_telemetry(metric: Metric) -> Event {
+        Event::Telemetry(sync::Arc::new(Some(metric)))
+    }
+
+    #[inline]
+    pub fn new_log(log: LogLine) -> Event {
+        Event::Log(sync::Arc::new(Some(log)))
+    }
+}
+
 impl Metric {
     /// Make a builder for metrics
     ///
@@ -636,6 +648,7 @@ mod tests {
     use self::quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
     use self::rand::{Rand, Rng};
     use std::cmp::Ordering;
+    use std::sync::Arc;
 
     #[test]
     fn partial_ord_distinct() {
@@ -692,7 +705,7 @@ mod tests {
             let i: usize = rng.gen();
             match i % 3 {
                 0 => Event::TimerFlush,
-                _ => Event::Telemetry(rng.gen()),
+                _ => Event::Telemetry(Arc::new(Some(rng.gen()))),
             }
         }
     }
