@@ -634,7 +634,18 @@ impl Metric {
                 None => break,
             }
         }
-        if res.is_empty() { None } else { Some(res) }
+        if res.is_empty() {
+            None
+        } else {
+            let mut metric = sync::Arc::make_mut(&mut metric.clone()).take().unwrap();
+            let name: sync::Arc<String> = get_from_cache(string_cache, "cernan.statsd.packet");
+            metric.name = CString::from(name);
+            metric = metric.counter();
+            metric = metric.set_value(1.0);
+            metric = metric.time(time::now());
+            res.push(metric);
+            Some(res)
+        }
     }
 
     pub fn parse_graphite(source: &str) -> Option<Vec<Metric>> {
