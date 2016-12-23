@@ -1,6 +1,101 @@
 use hopper;
 use metric;
+use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::ops;
+use std::sync;
+
+impl CString {
+    pub fn new() -> CString {
+        CString { inner: sync::Arc::new(String::with_capacity(128)) }
+    }
+
+    pub fn push_str(&mut self, s: &str) {
+        sync::Arc::make_mut(&mut self.inner).push_str(s);
+    }
+
+    pub fn clear(&mut self) {
+        sync::Arc::make_mut(&mut self.inner).clear();
+    }
+}
+
+impl<'a> From<&'a str> for CString {
+    fn from(s: &'a str) -> CString {
+        CString { inner: sync::Arc::new(s.to_string()) }
+    }
+}
+
+impl AsRef<str> for CString {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        &(*self.inner)
+    }
+}
+
+impl fmt::Display for CString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.inner)
+    }
+}
+
+impl PartialOrd for CString {
+    fn partial_cmp(&self, other: &CString) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for CString {
+    fn cmp(&self, other: &CString) -> Ordering {
+        self.inner.cmp(&other.inner)
+    }
+}
+
+impl ops::Index<ops::RangeFull> for CString {
+    type Output = str;
+
+    #[inline]
+    fn index(&self, _index: ops::RangeFull) -> &str {
+        &self.inner[..]
+    }
+}
+
+macro_rules! impl_eq {
+    ($lhs:ty, $rhs: ty) => {
+         impl<'a, 'b> PartialEq<$rhs> for $lhs {
+            #[inline]
+            fn eq(&self, other: &$rhs) -> bool { PartialEq::eq(&self[..], &other[..]) }
+            #[inline]
+            fn ne(&self, other: &$rhs) -> bool { PartialEq::ne(&self[..], &other[..]) }
+        }
+
+         impl<'a, 'b> PartialEq<$lhs> for $rhs {
+            #[inline]
+            fn eq(&self, other: &$lhs) -> bool { PartialEq::eq(&self[..], &other[..]) }
+            #[inline]
+            fn ne(&self, other: &$lhs) -> bool { PartialEq::ne(&self[..], &other[..]) }
+        }
+
+    }
+}
+
+impl_eq! { CString, str }
+impl_eq! { CString, &'a str }
+
+impl PartialEq for CString {
+    fn eq(&self, other: &CString) -> bool {
+        self.inner == other.inner
+    }
+}
+impl Eq for CString {}
+
+impl Hash for CString {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.inner.hash(state);
+    }
+}
+
+include!(concat!(env!("OUT_DIR"), "/util_types.rs"));
 
 pub type Channel = Vec<hopper::Sender<metric::Event>>;
 

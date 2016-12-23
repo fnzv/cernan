@@ -85,7 +85,7 @@ impl Wavefront {
         for (key, vals) in flat_aggrs {
             for m in vals {
                 if let Some(v) = m.value() {
-                    self.stats.push_str(key);
+                    self.stats.push_str(key.as_ref());
                     self.stats.push_str(" ");
                     self.stats.push_str(get_from_cache(&mut value_cache, v));
                     self.stats.push_str(" ");
@@ -120,7 +120,7 @@ impl Wavefront {
                              ("999", 0.999)] {
                     let stat: &str = tup.0;
                     let quant: f64 = tup.1;
-                    self.stats.push_str(key);
+                    self.stats.push_str(key.as_ref());
                     self.stats.push_str(".");
                     self.stats.push_str(stat);
                     self.stats.push_str(" ");
@@ -133,7 +133,7 @@ impl Wavefront {
                     self.stats.push_str("\n");
                 }
                 let count = hist.count();
-                self.stats.push_str(key);
+                self.stats.push_str(key.as_ref());
                 self.stats.push_str(".count");
                 self.stats.push_str(" ");
                 self.stats.push_str(get_from_cache(&mut count_cache, count));

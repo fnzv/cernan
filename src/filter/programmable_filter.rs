@@ -58,7 +58,7 @@ impl<'a> Payload<'a> {
         let mut state = State::from_ptr(L);
         let pyld = state.to_userdata(1) as *mut Payload;
         let idx = idx(state.to_integer(2) as i64, (*pyld).metrics.len());
-        state.push_string(&(*pyld).metrics[idx].name);
+        state.push_string(&(*pyld).metrics[idx].name.as_ref());
         1
     }
 
@@ -377,7 +377,7 @@ impl filter::Filter for ProgrammableFilter {
                 self.state.get_global("process_metric");
                 if !self.state.is_fn(-1) {
                     let fail =
-                        metric::Event::Telemetry(sync::Arc::new(Some(metric::Metric::new(format!("cernan.filture.\
+                        metric::Event::Telemetry(sync::Arc::new(Some(metric::Metric::new(&format!("cernan.filter.\
                                                                               {}.process_metric.\
                                                                               failure",
                                                                              self.path),
@@ -405,7 +405,7 @@ impl filter::Filter for ProgrammableFilter {
                 self.state.get_global("tick");
                 if !self.state.is_fn(-1) {
                     let fail =
-                        metric::Event::new_telemetry(metric::Metric::new(format!("cernan.filter.{}.\
+                        metric::Event::new_telemetry(metric::Metric::new(&format!("cernan.filter.{}.\
                                                                               tick.failure",
                                                                              self.path),
                                                                      1.0)
@@ -432,7 +432,7 @@ impl filter::Filter for ProgrammableFilter {
                 self.state.get_global("process_log");
                 if !self.state.is_fn(-1) {
                     let fail =
-                        metric::Event::new_telemetry(metric::Metric::new(format!("cernan.filter.{}.\
+                        metric::Event::new_telemetry(metric::Metric::new(&format!("cernan.filter.{}.\
                                                                               process_log.\
                                                                               failure",
                                                                              self.path),
