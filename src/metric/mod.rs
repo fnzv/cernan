@@ -1,4 +1,5 @@
 use quantiles::CKMS;
+use rand::{Rng, thread_rng};
 use std::str::FromStr;
 use std::sync;
 use time;
@@ -226,6 +227,10 @@ fn get_from_cache(cache: &mut Vec<(String, sync::Arc<String>)>, val: &str) -> sy
     match cache.binary_search_by(|probe| (probe.0.as_str()).partial_cmp(val).unwrap()) {
         Ok(idx) => cache[idx].1.clone(),
         Err(idx) => {
+            if cache.len() > 32_768 {
+                let idx = thread_rng().gen_range::<usize>(0, 32_768);
+                cache.remove(idx);
+            }
             let str_val = sync::Arc::new(val.to_string());
             cache.insert(idx, (val.to_string(), str_val));
             get_from_cache(cache, val)
