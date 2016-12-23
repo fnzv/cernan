@@ -47,7 +47,6 @@ impl Statsd {
 
 fn handle_udp(mut chans: util::Channel, tags: Arc<metric::TagMap>, socket: UdpSocket) {
     let mut buf = [0; 8192];
-    let mut string_cache: Vec<(String, Arc<String>)> = Vec::with_capacity(1024);
     let basic_metric = Arc::new(Some(metric::Metric::default().overlay_tags_from_map(&tags)));
     loop {
         let (len, _) = match socket.recv_from(&mut buf) {
@@ -56,21 +55,20 @@ fn handle_udp(mut chans: util::Channel, tags: Arc<metric::TagMap>, socket: UdpSo
         };
         str::from_utf8(&buf[..len])
             .map(|val| {
-                match metric::Metric::parse_statsd(val, &mut string_cache, basic_metric.clone()) {
+                match metric::Metric::parse_statsd(val, basic_metric.clone()) {
                     Some(metrics) => {
                         for m in metrics {
                             send("statsd", &mut chans, metric::Event::new_telemetry(m));
                         }
-                        // let mut metric = metric::Metric::new("cernan.statsd.packet",
-                        // 1.0).counter();
-                        // metric = metric.overlay_tags_from_map(&tags);
-                        // send("statsd", &mut chans, metric::Event::new_telemetry(metric));
+                        let mut metric = metric::Metric::new("cernan.statsd.packet", 1.0).counter();
+                        metric = metric.overlay_tags_from_map(&tags);
+                        send("statsd", &mut chans, metric::Event::new_telemetry(metric));
                     }
                     None => {
-                        // let mut metric = metric::Metric::new("cernan.statsd.bad_packet", 1.0)
-                        //     .counter();
-                        // metric = metric.overlay_tags_from_map(&tags);
-                        // send("statsd", &mut chans, metric::Event::new_telemetry(metric));
+                        let mut metric = metric::Metric::new("cernan.statsd.bad_packet", 1.0)
+                            .counter();
+                        metric = metric.overlay_tags_from_map(&tags);
+                        send("statsd", &mut chans, metric::Event::new_telemetry(metric));
                         error!("BAD PACKET: {:?}", val);
                     }
                 }

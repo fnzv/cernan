@@ -7,22 +7,22 @@ use std::ops;
 use std::sync;
 
 impl CString {
-    pub fn set(&mut self, s: &str) {
-        let inner = sync::Arc::make_mut(&mut self.inner);
-        inner.clear();
-        inner.push_str(s);
+    pub fn new() -> CString {
+        CString { inner: sync::Arc::new(String::with_capacity(128)) }
+    }
+
+    pub fn push_str(&mut self, s: &str) {
+        sync::Arc::make_mut(&mut self.inner).push_str(s);
+    }
+
+    pub fn clear(&mut self) {
+        sync::Arc::make_mut(&mut self.inner).clear();
     }
 }
 
 impl<'a> From<&'a str> for CString {
     fn from(s: &'a str) -> CString {
         CString { inner: sync::Arc::new(s.to_string()) }
-    }
-}
-
-impl<'a> From<sync::Arc<String>> for CString {
-    fn from(s: sync::Arc<String>) -> CString {
-        CString { inner: s.clone() }
     }
 }
 
