@@ -291,7 +291,7 @@ mod integration {
                 match event {
                     metric::Event::Telemetry(mut m) => {
                         let met = Arc::make_mut(&mut m).take().unwrap();
-                        assert_eq!(met.name.as_ref(), expected);
+                        assert_eq!(met.name, expected);
                     }
                     _ => {
                         assert!(false);
@@ -329,7 +329,7 @@ mod integration {
                 match event {
                     metric::Event::Telemetry(mut m) => {
                         let met = Arc::make_mut(&mut m).take().unwrap();
-                        assert_eq!(met.name.as_ref(), expected);
+                        assert_eq!(met.name, expected);
                     }
                     _ => {
                         assert!(false);

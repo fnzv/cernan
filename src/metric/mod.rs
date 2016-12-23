@@ -2,7 +2,6 @@ use quantiles::CKMS;
 use std::str::FromStr;
 use std::sync;
 use time;
-use util::CString;
 
 mod tagmap;
 
@@ -198,10 +197,9 @@ impl PartialOrd for Metric {
 
 impl Default for Metric {
     fn default() -> Metric {
-        let name = CString::new();
         Metric {
             kind: MetricKind::Raw,
-            name: name,
+            name: "".to_string(),
             tags: TagMap::default(),
             created_time: time::now(),
             time: time::now(),
@@ -240,13 +238,13 @@ impl Metric {
     /// assert_eq!(m.name, "foo");
     /// assert_eq!(m.value(), Some(1.1));
     /// ```
-    pub fn new(name: &str, value: f64) -> Metric {
+    pub fn new<S>(name: S, value: f64) -> Metric
+        where S: Into<String>
+    {
         let val = MetricValue::new(value);
-        let mut nm = CString::new();
-        nm.push_str(name);
         Metric {
             kind: MetricKind::Raw,
-            name: nm.into(),
+            name: name.into(),
             tags: TagMap::default(),
             created_time: time::now(),
             time: time::now(),
@@ -370,9 +368,10 @@ impl Metric {
         self
     }
 
-    pub fn set_name(mut self, name: &str) -> Metric {
-        self.name.clear();
-        self.name.push_str(name);
+    pub fn set_name<S>(mut self, name: S) -> Metric
+        where S: Into<String>
+    {
+        self.name = name.into();
         self
     }
 
@@ -661,7 +660,6 @@ mod tests {
     use self::rand::{Rand, Rng};
     use std::cmp::Ordering;
     use std::sync::Arc;
-    use util::CString;
 
     #[test]
     fn partial_ord_distinct() {
@@ -700,7 +698,7 @@ mod tests {
             let val: f64 = rng.gen();
             let kind: MetricKind = rng.gen();
             let time: i64 = rng.gen_range(0, 100);
-            let mut mb = Metric::new(&name, val).time(time);
+            let mut mb = Metric::new(name, val).time(time);
             mb = match kind {
                 MetricKind::Gauge => mb.gauge(),
                 MetricKind::Timer => mb.timer(),
@@ -812,32 +810,32 @@ mod tests {
         let prs_pyld = prs.unwrap();
 
         assert_eq!(prs_pyld[0].kind, MetricKind::Raw);
-        assert_eq!(prs_pyld[0].name, CString::from("fst"));
+        assert_eq!(prs_pyld[0].name, "fst");
         assert_eq!(prs_pyld[0].value(), Some(1.0));
         assert_eq!(prs_pyld[0].time, UTC.timestamp(101, 0).timestamp());
 
         assert_eq!(prs_pyld[1].kind, MetricKind::Raw);
-        assert_eq!(prs_pyld[1].name, CString::from("snd"));
+        assert_eq!(prs_pyld[1].name, "snd");
         assert_eq!(prs_pyld[1].value(), Some(-2.0));
         assert_eq!(prs_pyld[1].time, UTC.timestamp(202, 0).timestamp());
 
         assert_eq!(prs_pyld[2].kind, MetricKind::Raw);
-        assert_eq!(prs_pyld[2].name, CString::from("thr"));
+        assert_eq!(prs_pyld[2].name, "thr");
         assert_eq!(prs_pyld[2].value(), Some(3.0));
         assert_eq!(prs_pyld[2].time, UTC.timestamp(303, 0).timestamp());
 
         assert_eq!(prs_pyld[3].kind, MetricKind::Raw);
-        assert_eq!(prs_pyld[3].name, CString::from("fth@fth"));
+        assert_eq!(prs_pyld[3].name, "fth@fth");
         assert_eq!(prs_pyld[3].value(), Some(4.0));
         assert_eq!(prs_pyld[3].time, UTC.timestamp(404, 0).timestamp());
 
         assert_eq!(prs_pyld[4].kind, MetricKind::Raw);
-        assert_eq!(prs_pyld[4].name, CString::from("fv%fv"));
+        assert_eq!(prs_pyld[4].name, "fv%fv");
         assert_eq!(prs_pyld[4].value(), Some(5.0));
         assert_eq!(prs_pyld[4].time, UTC.timestamp(505, 0).timestamp());
 
         assert_eq!(prs_pyld[5].kind, MetricKind::Raw);
-        assert_eq!(prs_pyld[5].name, CString::from("s-th"));
+        assert_eq!(prs_pyld[5].name, "s-th");
         assert_eq!(prs_pyld[5].value(), Some(6.0));
         assert_eq!(prs_pyld[5].time, UTC.timestamp(606, 0).timestamp());
     }
@@ -848,7 +846,7 @@ mod tests {
 
         assert_eq!(m.kind, MetricKind::Timer);
         assert_eq!(m.query(1.0), Some(-1.0));
-        assert_eq!(m.name, CString::from("timer"));
+        assert_eq!(m.name, "timer");
     }
 
     #[test]
@@ -860,7 +858,7 @@ mod tests {
         let prs_pyld = prs.unwrap();
 
         assert_eq!(prs_pyld[0].kind, MetricKind::Timer);
-        assert_eq!(prs_pyld[0].name, CString::from("fst"));
+        assert_eq!(prs_pyld[0].name, "fst");
         assert_eq!(prs_pyld[0].query(1.0), Some(-1.1));
     }
 
@@ -870,7 +868,7 @@ mod tests {
 
         assert_eq!(m.kind, MetricKind::DeltaGauge);
         assert_eq!(m.value(), Some(1.0));
-        assert_eq!(m.name, CString::from("dgauge"));
+        assert_eq!(m.name, "dgauge");
     }
 
     #[test]
@@ -884,35 +882,35 @@ mod tests {
         let prs_pyld = prs.unwrap();
 
         assert_eq!(prs_pyld[0].kind, MetricKind::Gauge);
-        assert_eq!(prs_pyld[0].name, CString::from("zrth"));
+        assert_eq!(prs_pyld[0].name, "zrth");
         assert_eq!(prs_pyld[0].value(), Some(0.0));
 
         assert_eq!(prs_pyld[1].kind, MetricKind::Timer);
-        assert_eq!(prs_pyld[1].name, CString::from("fst"));
+        assert_eq!(prs_pyld[1].name, "fst");
         assert_eq!(prs_pyld[1].query(1.0), Some(-1.1));
 
         assert_eq!(prs_pyld[2].kind, MetricKind::DeltaGauge);
-        assert_eq!(prs_pyld[2].name, CString::from("snd"));
+        assert_eq!(prs_pyld[2].name, "snd");
         assert_eq!(prs_pyld[2].value(), Some(2.2));
 
         assert_eq!(prs_pyld[3].kind, MetricKind::Histogram);
-        assert_eq!(prs_pyld[3].name, CString::from("thd"));
+        assert_eq!(prs_pyld[3].name, "thd");
         assert_eq!(prs_pyld[3].query(1.0), Some(3.3));
 
         assert_eq!(prs_pyld[4].kind, MetricKind::Counter);
-        assert_eq!(prs_pyld[4].name, CString::from("fth"));
+        assert_eq!(prs_pyld[4].name, "fth");
         assert_eq!(prs_pyld[4].value(), Some(4.0));
 
         assert_eq!(prs_pyld[5].kind, MetricKind::Counter);
-        assert_eq!(prs_pyld[5].name, CString::from("fvth"));
+        assert_eq!(prs_pyld[5].name, "fvth");
         assert_eq!(prs_pyld[5].value(), Some(55.0));
 
         assert_eq!(prs_pyld[6].kind, MetricKind::DeltaGauge);
-        assert_eq!(prs_pyld[6].name, CString::from("sxth"));
+        assert_eq!(prs_pyld[6].name, "sxth");
         assert_eq!(prs_pyld[6].value(), Some(-6.6));
 
         assert_eq!(prs_pyld[7].kind, MetricKind::DeltaGauge);
-        assert_eq!(prs_pyld[7].name, CString::from("svth"));
+        assert_eq!(prs_pyld[7].name, "svth");
         assert_eq!(prs_pyld[7].value(), Some(7.77));
     }
 

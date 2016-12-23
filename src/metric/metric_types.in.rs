@@ -11,7 +11,7 @@ pub struct Metric {
     pub kind: MetricKind,
     pub time: i64,
     pub created_time: i64,
-    pub name: CString,
+    pub name: String,
     pub tags: TagMap,
     value: MetricValue,
 }

@@ -2,7 +2,6 @@ use buckets::Buckets;
 use chrono;
 use metric::{LogLine, Metric};
 use sink::{Sink, Valve};
-use std::fmt;
 use std::sync;
 
 pub struct Console {
@@ -31,9 +30,7 @@ impl ConsoleConfig {
 }
 
 /// Print a single stats line.
-fn fmt_line<T>(key: T, time: i64, value: f64)
-    where T: AsRef<str> + fmt::Display
-{
+fn fmt_line(key: &str, time: i64, value: f64) {
     println!("    {}({}): {}", key, time, value)
 }
 
@@ -57,7 +54,7 @@ impl Sink for Console {
         for (key, value) in self.aggrs.counters() {
             for m in value {
                 if let Some(f) = m.value() {
-                    fmt_line(key.as_ref(), m.time, f)
+                    fmt_line(key, m.time, f)
                 }
             }
         }

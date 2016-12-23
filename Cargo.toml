@@ -21,7 +21,6 @@ lazy_static = "0.2.1"
 libc = "0.2"
 log = "0.3.6"
 lua = "*"
-protobuf = "1.0"
 quantiles = "0.2.0"
 rand = "0.3"
 rusoto = {version = "0.19.1", features = ["firehose"]}
