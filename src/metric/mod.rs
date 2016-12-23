@@ -198,10 +198,9 @@ impl PartialOrd for Metric {
 
 impl Default for Metric {
     fn default() -> Metric {
-        let name = CString::new();
         Metric {
             kind: MetricKind::Raw,
-            name: name,
+            name: CString::from(""),
             tags: TagMap::default(),
             created_time: time::now(),
             time: time::now(),
@@ -219,6 +218,18 @@ impl Event {
     #[inline]
     pub fn new_log(log: LogLine) -> Event {
         Event::Log(sync::Arc::new(Some(log)))
+    }
+}
+
+#[inline]
+fn get_from_cache(cache: &mut Vec<(String, sync::Arc<String>)>, val: &str) -> sync::Arc<String> {
+    match cache.binary_search_by(|probe| (probe.0.as_str()).partial_cmp(val).unwrap()) {
+        Ok(idx) => cache[idx].1.clone(),
+        Err(idx) => {
+            let str_val = sync::Arc::new(val.to_string());
+            cache.insert(idx, (val.to_string(), str_val));
+            get_from_cache(cache, val)
+        }
     }
 }
 
@@ -242,11 +253,9 @@ impl Metric {
     /// ```
     pub fn new(name: &str, value: f64) -> Metric {
         let val = MetricValue::new(value);
-        let mut nm = CString::new();
-        nm.push_str(name);
         Metric {
             kind: MetricKind::Raw,
-            name: nm.into(),
+            name: CString::from(name),
             tags: TagMap::default(),
             created_time: time::now(),
             time: time::now(),
@@ -371,8 +380,7 @@ impl Metric {
     }
 
     pub fn set_name(mut self, name: &str) -> Metric {
-        self.name.clear();
-        self.name.push_str(name);
+        self.name.set(name);
         self
     }
 
@@ -536,7 +544,10 @@ impl Metric {
     /// p
     /// Multiple metrics can be sent in a single UDP packet
     /// separated by newlines.
-    pub fn parse_statsd(source: &str, metric: sync::Arc<Option<Metric>>) -> Option<Vec<Metric>> {
+    pub fn parse_statsd(source: &str,
+                        string_cache: &mut Vec<(String, sync::Arc<String>)>,
+                        metric: sync::Arc<Option<Metric>>)
+                        -> Option<Vec<Metric>> {
         let mut res = Vec::new();
         let mut iter = source.lines();
         loop {
@@ -563,7 +574,9 @@ impl Metric {
                                     };
                                     let mut metric =
                                         sync::Arc::make_mut(&mut metric.clone()).take().unwrap();
-                                    metric = metric.set_name(name);
+                                    let name: sync::Arc<String> = get_from_cache(string_cache,
+                                                                                 name);
+                                    metric.name = CString::from(name);
                                     metric = metric.set_value(val);
                                     metric = metric.time(time::now());
                                     metric = match &src[offset..(offset + 1)] {
@@ -854,7 +867,8 @@ mod tests {
     #[test]
     fn test_parse_negative_timer() {
         let metric = Arc::new(Some(Metric::default()));
-        let prs = Metric::parse_statsd("fst:-1.1|ms\n", metric);
+        let mut str_cache = Vec::new();
+        let prs = Metric::parse_statsd("fst:-1.1|ms\n", &mut str_cache, metric);
 
         assert!(prs.is_some());
         let prs_pyld = prs.unwrap();
@@ -878,7 +892,8 @@ mod tests {
         let pyld = "zrth:0|g\nfst:-1.1|ms\nsnd:+2.2|g\nthd:3.3|h\nfth:4|c\nfvth:5.5|c@0.1\nsxth:\
                     -6.6|g\nsvth:+7.77|g\n";
         let metric = Arc::new(Some(Metric::default()));
-        let prs = Metric::parse_statsd(pyld, metric);
+        let mut str_cache = Vec::new();
+        let prs = Metric::parse_statsd(pyld, &mut str_cache, metric);
 
         assert!(prs.is_some());
         let prs_pyld = prs.unwrap();
@@ -919,7 +934,8 @@ mod tests {
     #[test]
     fn test_metric_equal_in_name() {
         let metric = Arc::new(Some(Metric::default()));
-        let res = Metric::parse_statsd("A=:1|ms\n", metric).unwrap();
+        let mut str_cache = Vec::new();
+        let res = Metric::parse_statsd("A=:1|ms\n", &mut str_cache, metric).unwrap();
 
         assert_eq!("A=", res[0].name);
         assert_eq!(Some(1.0), res[0].query(1.0));
@@ -929,7 +945,8 @@ mod tests {
     #[test]
     fn test_metric_slash_in_name() {
         let metric = Arc::new(Some(Metric::default()));
-        let res = Metric::parse_statsd("A/:1|ms\n", metric).unwrap();
+        let mut str_cache = Vec::new();
+        let res = Metric::parse_statsd("A/:1|ms\n", &mut str_cache, metric).unwrap();
 
         assert_eq!("A/", res[0].name);
         assert_eq!(Some(1.0), res[0].query(1.0));
@@ -939,7 +956,9 @@ mod tests {
     #[test]
     fn test_metric_sample_gauge() {
         let metric = Arc::new(Some(Metric::default()));
-        let res = Metric::parse_statsd("foo:1|g@0.22\nbar:101|g@2\n", metric).unwrap();
+        let mut str_cache = Vec::new();
+        let res = Metric::parse_statsd("foo:1|g@0.22\nbar:101|g@2\n", &mut str_cache, metric)
+            .unwrap();
         //                              0         A     F
         assert_eq!("foo", res[0].name);
         assert_eq!(Some(1.0), res[0].query(1.0));
@@ -953,19 +972,22 @@ mod tests {
     #[test]
     fn test_metric_parse_invalid_no_name() {
         let metric = Arc::new(Some(Metric::default()));
-        assert_eq!(None, Metric::parse_statsd("", metric));
+        let mut str_cache = Vec::new();
+        assert_eq!(None, Metric::parse_statsd("", &mut str_cache, metric));
     }
 
     #[test]
     fn test_metric_parse_invalid_no_value() {
         let metric = Arc::new(Some(Metric::default()));
-        assert_eq!(None, Metric::parse_statsd("foo:", metric));
+        let mut str_cache = Vec::new();
+        assert_eq!(None, Metric::parse_statsd("foo:", &mut str_cache, metric));
     }
 
     #[test]
     fn test_metric_multiple() {
         let metric = Arc::new(Some(Metric::default()));
-        let res = Metric::parse_statsd("a.b:12.1|g\nb_c:13.2|c\n", metric).unwrap();
+        let mut str_cache = Vec::new();
+        let res = Metric::parse_statsd("a.b:12.1|g\nb_c:13.2|c\n", &mut str_cache, metric).unwrap();
         assert_eq!(2, res.len());
 
         assert_eq!("a.b", res[0].name);
@@ -978,7 +1000,8 @@ mod tests {
     #[test]
     fn test_metric_optional_final_newline() {
         let metric = Arc::new(Some(Metric::default()));
-        let res = Metric::parse_statsd("a.b:12.1|g\nb_c:13.2|c", metric).unwrap();
+        let mut str_cache = Vec::new();
+        let res = Metric::parse_statsd("a.b:12.1|g\nb_c:13.2|c", &mut str_cache, metric).unwrap();
         assert_eq!(2, res.len());
 
         assert_eq!("a.b", res[0].name);
@@ -992,8 +1015,9 @@ mod tests {
     fn test_metric_invalid() {
         let invalid = vec!["", "metric", "metric|11:", "metric|12", "metric:13|", ":|@", ":1.0|c"];
         let metric = Arc::new(Some(Metric::default()));
+        let mut str_cache = Vec::new();
         for input in invalid.iter() {
-            let result = Metric::parse_statsd(*input, metric.clone());
+            let result = Metric::parse_statsd(*input, &mut str_cache, metric.clone());
             assert!(result.is_none());
         }
     }
