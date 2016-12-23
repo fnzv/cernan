@@ -8,8 +8,11 @@ fn main() {
 
     let metric_src = Path::new("src/metric/metric_types.in.rs");
     let metric_dst = Path::new(&out_dir).join("metric_types.rs");
+    let util_src = Path::new("src/util_types.in.rs");
+    let util_dst = Path::new(&out_dir).join("util_types.rs");
     let tagmap_src = Path::new("src/metric/tagmap_types.in.rs");
     let tagmap_dst = Path::new(&out_dir).join("tagmap_types.rs");
     serde_codegen::expand(&metric_src, &metric_dst).unwrap();
+    serde_codegen::expand(&util_src, &util_dst).unwrap();
     serde_codegen::expand(&tagmap_src, &tagmap_dst).unwrap();
 }
