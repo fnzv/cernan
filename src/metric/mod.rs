@@ -199,8 +199,8 @@ impl Default for Metric {
     fn default() -> Metric {
         Metric {
             kind: MetricKind::Raw,
-            name: "".to_string(),
-            tags: TagMap::default(),
+            name: String::from(""),
+            tags: sync::Arc::new(TagMap::default()),
             created_time: time::now(),
             time: time::now(),
             value: MetricValue::new(0.0),
@@ -245,7 +245,7 @@ impl Metric {
         Metric {
             kind: MetricKind::Raw,
             name: name.into(),
-            tags: TagMap::default(),
+            tags: sync::Arc::new(TagMap::default()),
             created_time: time::now(),
             time: time::now(),
             value: val,
@@ -276,7 +276,7 @@ impl Metric {
     pub fn overlay_tag<S>(mut self, key: S, val: S) -> Metric
         where S: Into<String>
     {
-        self.tags.insert(key.into(), val.into());
+        sync::Arc::make_mut(&mut self.tags).insert(key.into(), val.into());
         self
     }
 
@@ -308,7 +308,7 @@ impl Metric {
     /// ```
     pub fn overlay_tags_from_map(mut self, map: &TagMap) -> Metric {
         for &(ref k, ref v) in map.iter() {
-            self.tags.insert(k.clone(), v.clone());
+            sync::Arc::make_mut(&mut self.tags).insert(k.clone(), v.clone());
         }
         self
     }
@@ -341,7 +341,7 @@ impl Metric {
     /// assert_eq!(Some(&"rab".into()), m.tags.get(&String::from("oof")));
     /// ```
     pub fn merge_tags_from_map(mut self, map: &TagMap) -> Metric {
-        self.tags.merge(map);
+        sync::Arc::make_mut(&mut self.tags).merge(map);
         self
     }
 

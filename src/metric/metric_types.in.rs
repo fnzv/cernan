@@ -12,7 +12,7 @@ pub struct Metric {
     pub time: i64,
     pub created_time: i64,
     pub name: String,
-    pub tags: TagMap,
+    pub tags: sync::Arc<TagMap>,
     value: MetricValue,
 }
 

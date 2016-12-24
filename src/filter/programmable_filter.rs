@@ -178,7 +178,7 @@ impl<'a> Payload<'a> {
             Some(key) => {
                 match state.to_str(4).map(|v| v.to_owned()) {
                     Some(val) => {
-                        match (*pyld).metrics[idx].tags.insert(key, val) {
+                        match sync::Arc::make_mut(&mut (*pyld).metrics[idx].tags).insert(key, val) {
                             Some(old_v) => {
                                 state.push_string(&old_v);
                             }
@@ -240,7 +240,7 @@ impl<'a> Payload<'a> {
         let idx = idx(state.to_integer(2) as i64, (*pyld).metrics.len());
         match state.to_str(3).map(|k| k.to_owned()) {
             Some(key) => {
-                match (*pyld).metrics[idx].tags.remove(&key) {
+                match sync::Arc::make_mut(&mut (*pyld).metrics[idx].tags).remove(&key) {
                     Some(old_v) => {
                         state.push_string(&old_v);
                     }
