@@ -7,10 +7,12 @@ mod console;
 mod firehose;
 mod null;
 mod wavefront;
+mod native;
 
 pub use self::console::{Console, ConsoleConfig};
 pub use self::firehose::{Firehose, FirehoseConfig};
 pub use self::null::{Null, NullConfig};
+pub use self::native::{Native, NativeConfig};
 pub use self::wavefront::{Wavefront, WavefrontConfig};
 
 pub enum Valve {

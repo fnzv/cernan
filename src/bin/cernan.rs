@@ -101,6 +101,15 @@ fn main() {
             cernan::sink::Wavefront::new(config).run(wf_recv);
         }));
     }
+    if let Some(config) = args.native_sink_config {
+        let (cernan_send, cernan_recv) = hopper::channel(&config.config_path, &args.data_directory)
+            .unwrap();
+        flush_sends.push(cernan_send.clone());
+        sends.insert(config.config_path.clone(), cernan_send);
+        joins.push(thread::spawn(move || {
+            cernan::sink::Native::new(config).run(cernan_recv);
+        }));
+    }
     for config in &args.firehosen {
         let f: FirehoseConfig = config.clone();
         let (firehose_send, firehose_recv) =

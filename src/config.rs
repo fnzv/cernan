@@ -17,7 +17,7 @@ use toml::Value;
 const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 use super::filter::ProgrammableFilterConfig;
-use super::sink::{ConsoleConfig, FirehoseConfig, NullConfig, WavefrontConfig};
+use super::sink::{ConsoleConfig, FirehoseConfig, NativeConfig, NullConfig, WavefrontConfig};
 use super::source::{FileServerConfig, GraphiteConfig, NativeServerConfig, StatsdConfig};
 
 #[derive(Debug)]
@@ -29,6 +29,7 @@ pub struct Args {
     pub firehosen: Vec<FirehoseConfig>,
     pub flush_interval: u64,
     pub graphites: HashMap<String, GraphiteConfig>,
+    pub native_sink_config: Option<NativeConfig>,
     pub native_server_config: Option<NativeServerConfig>,
     pub null: Option<NullConfig>,
     pub scripts_directory: PathBuf,
@@ -125,6 +126,7 @@ pub fn parse_args() -> Args {
                 statsds: statsds,
                 graphites: graphites,
                 native_server_config: None,
+                native_sink_config: None,
                 flush_interval: u64::from_str(args.value_of("flush-interval").unwrap())
                     .expect("flush-interval must be an integer"),
                 console: console,
@@ -204,6 +206,28 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
                 .unwrap(),
             config_path: "sinks.wavefront".to_string(),
             tags: tags.clone(),
+        })
+    } else {
+        None
+    };
+
+    let native_sink_config = if value.lookup("native")
+        .or(value.lookup("sinks.native"))
+        .is_some() {
+        Some(NativeConfig {
+            port: value.lookup("native.port")
+                .or(value.lookup("sinks.native.port"))
+                .unwrap_or(&Value::Integer(1972))
+                .as_integer()
+                .map(|i| i as u16)
+                .unwrap(),
+            host: value.lookup("native.host")
+                .or(value.lookup("sinks.native.host"))
+                .unwrap_or(&Value::String("127.0.0.1".to_string()))
+                .as_str()
+                .map(|s| s.to_string())
+                .unwrap(),
+            config_path: "sinks.native".to_string(),
         })
     } else {
         None
@@ -551,6 +575,7 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
         scripts_directory: scripts_dir,
         statsds: statsds,
         graphites: graphites,
+        native_sink_config: native_sink_config,
         native_server_config: native_server_config,
         flush_interval: value.lookup("flush-interval")
             .unwrap_or(&Value::Integer(60))
@@ -683,6 +708,56 @@ ip = "127.0.0.1"
         let native_server_config = args.native_server_config.unwrap();
         assert_eq!(native_server_config.port, 1972);
         assert_eq!(native_server_config.ip, String::from("127.0.0.1"));
+    }
+
+    #[test]
+    fn config_fed_transmitter() {
+        let config = r#"
+[native]
+port = 1987
+"#
+            .to_string();
+
+        let args = parse_config_file(config, 4);
+
+        assert!(args.native_sink_config.is_some());
+        let native_sink_config = args.native_sink_config.unwrap();
+        assert_eq!(native_sink_config.host, String::from("127.0.0.1"));
+        assert_eq!(native_sink_config.port, 1987);
+    }
+
+    #[test]
+    fn config_native_sink_config_distinct_host() {
+        let config = r#"
+[native]
+host = "foo.example.com"
+"#
+            .to_string();
+
+        let args = parse_config_file(config, 4);
+
+        assert!(args.native_sink_config.is_some());
+        let native_sink_config = args.native_sink_config.unwrap();
+        assert_eq!(native_sink_config.host, String::from("foo.example.com"));
+        assert_eq!(native_sink_config.port, 1972);
+    }
+
+    #[test]
+    fn config_native_sink_config_distinct_host_sinks_style() {
+        let config = r#"
+[sinks]
+  [sinks.native]
+  host = "foo.example.com"
+  port = 1972
+"#
+            .to_string();
+
+        let args = parse_config_file(config, 4);
+
+        assert!(args.native_sink_config.is_some());
+        let native_sink_config = args.native_sink_config.unwrap();
+        assert_eq!(native_sink_config.host, String::from("foo.example.com"));
+        assert_eq!(native_sink_config.port, 1972);
     }
 
     #[test]
