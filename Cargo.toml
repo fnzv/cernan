@@ -24,6 +24,7 @@ lua = "*"
 quantiles = "0.2.0"
 rand = "0.3"
 rusoto = {version = "0.19.1", features = ["firehose"]}
+protobuf = "1.0"
 serde = "0.8"
 serde_json = "0.8"
 toml = "0.2.0"

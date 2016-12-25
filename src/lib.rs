@@ -14,6 +14,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate toml;
 extern crate uuid;
+extern crate protobuf;
 
 #[macro_use]
 extern crate log;

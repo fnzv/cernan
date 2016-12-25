@@ -131,6 +131,16 @@ fn main() {
 
     // SOURCES
     //
+    if let Some(config) = args.native_server_config {
+        let mut native_server_send = Vec::new();
+        populate_forwards(&mut native_server_send,
+                          &config.forwards,
+                          &config.config_path,
+                          &sends);
+        joins.push(thread::spawn(move || {
+            cernan::source::NativeServer::new(native_server_send, config).run();
+        }))
+    }
     for config in args.statsds.values() {
         let c = (*config).clone();
         let mut statsd_sends = Vec::new();

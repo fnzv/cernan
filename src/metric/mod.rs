@@ -27,6 +27,11 @@ impl LogLine {
         }
     }
 
+    pub fn time(mut self, time: i64) -> LogLine {
+        self.time = time;
+        self
+    }
+
     pub fn overlay_tag<S>(mut self, key: S, val: S) -> LogLine
         where S: Into<String>
     {

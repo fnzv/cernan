@@ -18,23 +18,24 @@ const VERSION: Option<&'static str> = option_env!("CARGO_PKG_VERSION");
 
 use super::filter::ProgrammableFilterConfig;
 use super::sink::{ConsoleConfig, FirehoseConfig, NullConfig, WavefrontConfig};
-use super::source::{FileServerConfig, GraphiteConfig, StatsdConfig};
+use super::source::{FileServerConfig, GraphiteConfig, NativeServerConfig, StatsdConfig};
 
 #[derive(Debug)]
 pub struct Args {
-    pub data_directory: PathBuf,
-    pub scripts_directory: PathBuf,
-    pub statsds: HashMap<String, StatsdConfig>,
-    pub graphites: HashMap<String, GraphiteConfig>,
-    pub flush_interval: u64,
     pub console: Option<ConsoleConfig>,
-    pub null: Option<NullConfig>,
-    pub wavefront: Option<WavefrontConfig>,
-    pub firehosen: Vec<FirehoseConfig>,
+    pub data_directory: PathBuf,
     pub files: Vec<FileServerConfig>,
     pub filters: HashMap<String, ProgrammableFilterConfig>,
+    pub firehosen: Vec<FirehoseConfig>,
+    pub flush_interval: u64,
+    pub graphites: HashMap<String, GraphiteConfig>,
+    pub native_server_config: Option<NativeServerConfig>,
+    pub null: Option<NullConfig>,
+    pub scripts_directory: PathBuf,
+    pub statsds: HashMap<String, StatsdConfig>,
     pub verbose: u64,
     pub version: String,
+    pub wavefront: Option<WavefrontConfig>,
 }
 
 pub fn parse_args() -> Args {
@@ -123,6 +124,7 @@ pub fn parse_args() -> Args {
                 scripts_directory: Path::new("/tmp/cernan-scripts").to_path_buf(),
                 statsds: statsds,
                 graphites: graphites,
+                native_server_config: None,
                 flush_interval: u64::from_str(args.value_of("flush-interval").unwrap())
                     .expect("flush-interval must be an integer"),
                 console: console,
@@ -504,6 +506,42 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
         }
     };
 
+    let native_server_config = if value.lookup("native_server")
+        .or(value.lookup("sources.native_server"))
+        .is_some() {
+        let port = match value.lookup("native_server.port")
+            .or(value.lookup("sources.native_server.port")) {
+            Some(p) => p.as_integer().expect("fed_server.port must be integer") as u16,
+            None => 1972,
+        };
+        let ip = match value.lookup("native_server.ip")
+            .or(value.lookup("sources.native_server.ip")) {
+            Some(p) => p.as_str().unwrap(),
+            None => "0.0.0.0",
+        };
+        let fwds = match value.lookup("native_server.forwards")
+            .or(value.lookup("sources.native_server.forwards")) {
+            Some(fwds) => {
+                fwds.as_slice()
+                    .expect("forwards must be an array")
+                    .to_vec()
+                    .iter()
+                    .map(|s| s.as_str().unwrap().to_string())
+                    .collect()
+            }
+            None => Vec::new(),
+        };
+        Some(NativeServerConfig {
+            ip: ip.to_owned(),
+            port: port,
+            tags: tags.clone(),
+            forwards: fwds,
+            config_path: "sources.native_server".to_string(),
+        })
+    } else {
+        None
+    };
+
     Args {
         data_directory: value.lookup("data-directory")
             .unwrap_or(&Value::String("/tmp/cernan-data".to_string()))
@@ -513,6 +551,7 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
         scripts_directory: scripts_dir,
         statsds: statsds,
         graphites: graphites,
+        native_server_config: native_server_config,
         flush_interval: value.lookup("flush-interval")
             .unwrap_or(&Value::Integer(60))
             .as_integer()
@@ -594,6 +633,56 @@ scripts-directory = "/foo/bar"
         assert_eq!(true, args.firehosen.is_empty());
         assert!(args.wavefront.is_none());
         assert_eq!(args.verbose, 4);
+    }
+
+    #[test]
+    fn config_native_server() {
+        let config = r#"
+[native_server]
+port = 1987
+"#
+            .to_string();
+
+        let args = parse_config_file(config, 4);
+
+        assert!(args.native_server_config.is_some());
+        let native_server_config = args.native_server_config.unwrap();
+        assert_eq!(native_server_config.port, 1987);
+        assert_eq!(native_server_config.ip, String::from("0.0.0.0"));
+    }
+
+    #[test]
+    fn config_fed_receiver_ip() {
+        let config = r#"
+[native_server]
+ip = "127.0.0.1"
+"#
+            .to_string();
+
+        let args = parse_config_file(config, 4);
+
+        assert!(args.native_server_config.is_some());
+        let native_server_config = args.native_server_config.unwrap();
+        assert_eq!(native_server_config.port, 1972);
+        assert_eq!(native_server_config.ip, String::from("127.0.0.1"));
+    }
+
+    #[test]
+    fn config_fed_receiver_sources_style() {
+        let config = r#"
+[sources]
+  [sources.native_server]
+  ip = "127.0.0.1"
+  port = 1972
+"#
+            .to_string();
+
+        let args = parse_config_file(config, 4);
+
+        assert!(args.native_server_config.is_some());
+        let native_server_config = args.native_server_config.unwrap();
+        assert_eq!(native_server_config.port, 1972);
+        assert_eq!(native_server_config.ip, String::from("127.0.0.1"));
     }
 
     #[test]
