@@ -1,4 +1,4 @@
-use quantiles::CKMS;
+use quantiles::ckms::CKMS;
 use std::str::FromStr;
 use std::sync;
 use time;
@@ -62,6 +62,13 @@ impl MetricValue {
             kind: MetricValueKind::Single,
             single: Some(value),
             many: None,
+        }
+    }
+
+    fn into_vec(self) -> Vec<f64> {
+        match self.kind {
+            MetricValueKind::Single => vec![self.single.unwrap()],
+            MetricValueKind::Many => self.many.unwrap().into_vec(),
         }
     }
 
@@ -391,6 +398,10 @@ impl Metric {
             MetricKind::DeltaGauge | MetricKind::Counter => self.value.sum(),
             MetricKind::Timer | MetricKind::Histogram => self.value.query(1.0).map(|x| x.1),
         }
+    }
+
+    pub fn into_vec(&self) -> Vec<f64> {
+        self.value.clone().into_vec()
     }
 
     pub fn within(&self, span: i64, other: &Metric) -> Ordering {

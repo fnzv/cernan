@@ -183,11 +183,14 @@ port = 8125 # UDP port to bind for statsd traffic. [default: 8125]
 
 [sources.graphite.primary]
 port = 2003 # TCP port to bind for graphite traffic. [default: 2003]
+
+[sources.native]
+port = 1972 # TCP port to bind for native cernan traffic. [default: 1972]
 ```
 
-The statsd and graphite interfaces are optional, though they are enabled by
-default. To disable set `enabled = false`. For example, this configuration
-disables the statsd listeners but keeps graphite going:
+All sources are optional and may be present in configuration but in a disabled
+state. For example, this configuration disables the statsd listeners but keeps
+graphite going:
 
 ```
 [sources.statsd.primary]
@@ -206,7 +209,14 @@ It is possible to run multiple sources that cover the same protocol so long as
 they are offset on different ports. Each source must be named uniquely. In the
 above we have three sources--only one of which is enabled--named
 `sources.statsd.primary`, `sources.statsd.secondary` and
-`sources.graphite.primary`. All _must_ have a unique name.
+`sources.graphite.primary`. All _must_ have a unique name. The native server is
+distinct. It is a singleton.
+
+The native protocol is cernan's preferred method of ingestion. The file
+`resources/protobufs/native_protocol.proto` defines the encoding. Cernan
+requires that each encoded payload be sent over TCP. The payload must be length
+prefixed, the length being an unsigned, network-ordered 32 bit integer. Please
+see the the above encoding definition for more details.
 
 In addition to network ports, cernan is able to ingest log files. This is
 configured in a different manner than the above as there may be many different
@@ -469,7 +479,7 @@ There are no configurable options for the null sink.
 The `firehose` sink accepts logging information and emits it
 into
 [Amazon Kinesis Firehose](https://aws.amazon.com/kinesis/firehose/). Kinesis
-Firehose can be configured to emit into multiple targets. 
+Firehose can be configured to emit into multiple targets.
 
 You may configure multiple firehoses. In the following, two firehoses are
 configured: 
@@ -487,6 +497,21 @@ region = "us-east-1"
 
 By default, region is equivalent to `us-west-2`. In the above `stream_one`
 should exist in `us-west-2` and `stream_two` in `us-east-1`. 
+
+### native 
+
+The `native` sink accepts both telemetry and logging information and is intended
+to be used for one cernan to pass information onto another. In earlier versions
+of cernan this was referred to as 'federation' but over an undefined
+protocol. The `native` sink uses cernan's native protocol, defined above.
+
+You may have only one native sink. 
+
+```
+[sinks.native]
+host = "foo.example.com"
+port = 1972
+```
 
 ## Prior Art
 

@@ -1,6 +1,6 @@
 [package]
 name = "cernan"
-version = "0.4.12"
+version = "0.5.0-dev"
 authors = ["Brian L. Troutwine <blt@postmates.com>"]
 build = "build.rs"
 
@@ -21,7 +21,7 @@ lazy_static = "0.2.1"
 libc = "0.2"
 log = "0.3.6"
 lua = "*"
-quantiles = "0.2.0"
+quantiles = "0.3"
 rand = "0.3"
 rusoto = {version = "0.19.1", features = ["firehose"]}
 protobuf = "1.0"

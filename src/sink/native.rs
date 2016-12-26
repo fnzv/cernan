@@ -2,9 +2,10 @@ use hopper;
 use metric;
 use protobuf::Message;
 use protobuf::repeated::RepeatedField;
+use protocols::native::{AggregationMethod, LogLine, LogLine_MetadataEntry, Payload, Telemetry,
+                        Telemetry_MetadataEntry};
 use sink::{Sink, Valve};
-use source::native_protocol::{AggregationMethod, LogLine, LogLine_MetadataEntry, Payload,
-                              Telemetry, Telemetry_MetadataEntry};
+use std::mem::replace;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync;
 use time;
@@ -83,20 +84,24 @@ impl Sink for Native {
         for ev in self.buffer.drain(..) {
             match ev {
                 metric::Event::Telemetry(mut m) => {
-                    let m = sync::Arc::make_mut(&mut m).take().unwrap();
+                    let mut m = sync::Arc::make_mut(&mut m).take().unwrap();
                     let mut telem = Telemetry::new();
-                    telem.set_name(m.name);
-                    // samples
+                    telem.set_name(replace(&mut m.name, Default::default()));
+                    telem.set_samples(m.into_vec());
                     let method = match m.kind {
-                        metric::MetricKind::Counter => AggregationMethod::WINDOW_COUNT,
+                        metric::MetricKind::Counter => AggregationMethod::SUM,
                         metric::MetricKind::Raw => AggregationMethod::SET_OR_RESET,
                         metric::MetricKind::Gauge => AggregationMethod::SET_OR_RESET,
-                        metric::MetricKind::DeltaGauge => AggregationMethod::MONOTONIC_ADD,
+                        metric::MetricKind::DeltaGauge => AggregationMethod::ACCUMULATING_SUM,
                         metric::MetricKind::Histogram |
                         metric::MetricKind::Timer => AggregationMethod::SUMMARIZE,
                     };
                     telem.set_method(method);
                     let mut meta = Vec::new();
+                    // TODO
+                    //
+                    // Learn how to consume bits of the metric without having to
+                    // clone like crazy
                     for (k, v) in m.tags.into_iter() {
                         let mut tm = Telemetry_MetadataEntry::new();
                         tm.set_key(k.clone());
@@ -104,7 +109,7 @@ impl Sink for Native {
                         meta.push(tm);
                     }
                     telem.set_metadata(RepeatedField::from_vec(meta));
-                    telem.set_timestamp_ms(m.time);
+                    telem.set_timestamp_ms(m.time * 1000); // FIXME #166
 
                     points.push(telem);
                 }
@@ -114,6 +119,10 @@ impl Sink for Native {
                     ll.set_path(l.path);
                     ll.set_value(l.value);
                     let mut meta = Vec::new();
+                    // TODO
+                    //
+                    // Learn how to consume bits of the metric without having to
+                    // clone like crazy
                     for (k, v) in l.tags.into_iter() {
                         let mut tm = LogLine_MetadataEntry::new();
                         tm.set_key(k.clone());
@@ -121,7 +130,7 @@ impl Sink for Native {
                         meta.push(tm);
                     }
                     ll.set_metadata(RepeatedField::from_vec(meta));
-                    ll.set_timestamp_ms(l.time);
+                    ll.set_timestamp_ms(l.time * 1000); // FIXME #166
 
                     lines.push(ll);
                 }

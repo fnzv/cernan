@@ -3,7 +3,6 @@ mod statsd;
 mod file;
 mod flush;
 mod native;
-pub mod native_protocol;
 
 pub use self::file::{FileServer, FileServerConfig};
 pub use self::flush::FlushTimer;

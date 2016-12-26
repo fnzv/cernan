@@ -7,7 +7,7 @@ use std::thread;
 use super::Source;
 use util;
 use protobuf::core::parse_length_delimited_from_reader; 
-use source::native_protocol::{Payload,AggregationMethod};
+use protocols::native::{Payload,AggregationMethod};
 
 pub struct NativeServer {
     chans: util::Channel,
@@ -61,53 +61,57 @@ fn handle_tcp(chans: util::Channel,
 fn handle_stream(mut chans: util::Channel, tags: metric::TagMap, stream: TcpStream) {
     thread::spawn(move || {
         let mut reader = io::BufReader::new(stream);
-        parse_length_delimited_from_reader::<Payload>(&mut reader)
-        .and_then(|pyld| {
-            for point in pyld.get_points() {
-                let name: &str = point.get_name();
-                let smpls: &[f64] = point.get_samples();
-                let aggr_type: AggregationMethod = point.get_method();
-                let meta = point.get_metadata();
-                let ts: i64 = point.get_timestamp_ms();
-                
-                let mut metric = metric::Metric::new(name, smpls[0]);
-                for smpl in &smpls[1..] {
-                    metric = metric.insert_value(*smpl);
+        loop {
+            match parse_length_delimited_from_reader::<Payload>(&mut reader) {
+                Ok(pyld) => {
+                    for point in pyld.get_points() {
+                        let name: &str = point.get_name();
+                        let smpls: &[f64] = point.get_samples();
+                        let aggr_type: AggregationMethod = point.get_method();
+                        let meta = point.get_metadata();
+                        // FIXME #166
+                        let ts: i64 = (point.get_timestamp_ms() as f64 * 0.001) as i64;
+                        
+                        let mut metric = metric::Metric::new(name, smpls[0]);
+                        for smpl in &smpls[1..] {
+                            metric = metric.insert_value(*smpl);
+                        }
+                        metric = match aggr_type {
+                            AggregationMethod::SET_OR_RESET => metric, 
+                            AggregationMethod::SUM => metric.counter(),
+                            AggregationMethod::SUMMARIZE => metric.histogram(),
+                            AggregationMethod::ACCUMULATING_SUM => metric.delta_gauge(),
+                        };
+                        metric = metric.time(ts);
+                        metric = metric.overlay_tags_from_map(&tags);
+                        for mt in meta {
+                            metric = metric.overlay_tag(mt.get_key(), mt.get_value());
+                        }
+                        util::send("native", &mut chans, metric::Event::new_telemetry(metric));
+                    }
+                    for line in pyld.get_lines() {
+                        let path: &str = line.get_path();
+                        let value: &str = line.get_value();
+                        let meta = line.get_metadata();
+                        // FIXME #166
+                        let ts: i64 = (line.get_timestamp_ms() as f64 * 0.001) as i64;
+                        
+                        let mut logline = metric::LogLine::new(path, value);
+                        logline = logline.time(ts);
+                        logline = logline.overlay_tags_from_map(&tags);
+                        for mt in meta {
+                            logline = logline.overlay_tag(mt.get_key(), mt.get_value());
+                        }
+                        util::send("native", &mut chans, metric::Event::new_log(logline));
+                            
+                    }
+                },
+                Err(err) => {
+                    trace!("Unable to read payload: {:?}", err);
+                    return; 
                 }
-                metric = match aggr_type {
-                    AggregationMethod::SET_OR_RESET => metric, 
-                    AggregationMethod::WINDOW_COUNT => metric.counter(),
-                    AggregationMethod::SUMMARIZE => metric.histogram(),
-                    AggregationMethod::MONOTONIC_ADD => metric.delta_gauge(),
-                };
-                metric = metric.time(ts);
-                metric = metric.overlay_tags_from_map(&tags);
-                for mt in meta {
-                    metric = metric.overlay_tag(mt.get_key(), mt.get_value());
-                }
-                util::send("native", &mut chans, metric::Event::new_telemetry(metric));
             }
-            for line in pyld.get_lines() {
-                let path: &str = line.get_path();
-                let value: &str = line.get_value();
-                let meta = line.get_metadata();
-                let ts: i64 = line.get_timestamp_ms();
-                
-                let mut logline = metric::LogLine::new(path, value);
-                logline = logline.time(ts);
-                logline = logline.overlay_tags_from_map(&tags);
-                for mt in meta {
-                    logline = logline.overlay_tag(mt.get_key(), mt.get_value());
-                }
-                util::send("native", &mut chans, metric::Event::new_log(logline))
-                
-            }
-            Ok(())
-        })
-        .or_else(|err| {
-            trace!("Unable to read payload: {:?}", err);
-                Err(io::Error::new(io::ErrorKind::Other, "read error"))
-        })
+        }
     });
 }
 

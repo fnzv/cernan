@@ -211,18 +211,14 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
         None
     };
 
-    let native_sink_config = if value.lookup("native")
-        .or(value.lookup("sinks.native"))
-        .is_some() {
+    let native_sink_config = if value.lookup("sinks.native").is_some() {
         Some(NativeConfig {
-            port: value.lookup("native.port")
-                .or(value.lookup("sinks.native.port"))
+            port: value.lookup("sinks.native.port")
                 .unwrap_or(&Value::Integer(1972))
                 .as_integer()
                 .map(|i| i as u16)
                 .unwrap(),
-            host: value.lookup("native.host")
-                .or(value.lookup("sinks.native.host"))
+            host: value.lookup("sinks.native.host")
                 .unwrap_or(&Value::String("127.0.0.1".to_string()))
                 .as_str()
                 .map(|s| s.to_string())
@@ -530,21 +526,17 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
         }
     };
 
-    let native_server_config = if value.lookup("native_server")
-        .or(value.lookup("sources.native_server"))
+    let native_server_config = if value.lookup("sources.native")
         .is_some() {
-        let port = match value.lookup("native_server.port")
-            .or(value.lookup("sources.native_server.port")) {
+        let port = match value.lookup("sources.native.port") {
             Some(p) => p.as_integer().expect("fed_server.port must be integer") as u16,
             None => 1972,
         };
-        let ip = match value.lookup("native_server.ip")
-            .or(value.lookup("sources.native_server.ip")) {
+        let ip = match value.lookup("sources.native.ip") {
             Some(p) => p.as_str().unwrap(),
             None => "0.0.0.0",
         };
-        let fwds = match value.lookup("native_server.forwards")
-            .or(value.lookup("sources.native_server.forwards")) {
+        let fwds = match value.lookup("sources.native.forwards") {
             Some(fwds) => {
                 fwds.as_slice()
                     .expect("forwards must be an array")
@@ -560,7 +552,7 @@ pub fn parse_config_file(buffer: String, verbosity: u64) -> Args {
             port: port,
             tags: tags.clone(),
             forwards: fwds,
-            config_path: "sources.native_server".to_string(),
+            config_path: "sources.native".to_string(),
         })
     } else {
         None
@@ -661,42 +653,10 @@ scripts-directory = "/foo/bar"
     }
 
     #[test]
-    fn config_native_server() {
-        let config = r#"
-[native_server]
-port = 1987
-"#
-            .to_string();
-
-        let args = parse_config_file(config, 4);
-
-        assert!(args.native_server_config.is_some());
-        let native_server_config = args.native_server_config.unwrap();
-        assert_eq!(native_server_config.port, 1987);
-        assert_eq!(native_server_config.ip, String::from("0.0.0.0"));
-    }
-
-    #[test]
-    fn config_fed_receiver_ip() {
-        let config = r#"
-[native_server]
-ip = "127.0.0.1"
-"#
-            .to_string();
-
-        let args = parse_config_file(config, 4);
-
-        assert!(args.native_server_config.is_some());
-        let native_server_config = args.native_server_config.unwrap();
-        assert_eq!(native_server_config.port, 1972);
-        assert_eq!(native_server_config.ip, String::from("127.0.0.1"));
-    }
-
-    #[test]
     fn config_fed_receiver_sources_style() {
         let config = r#"
 [sources]
-  [sources.native_server]
+  [sources.native]
   ip = "127.0.0.1"
   port = 1972
 "#
@@ -708,38 +668,6 @@ ip = "127.0.0.1"
         let native_server_config = args.native_server_config.unwrap();
         assert_eq!(native_server_config.port, 1972);
         assert_eq!(native_server_config.ip, String::from("127.0.0.1"));
-    }
-
-    #[test]
-    fn config_fed_transmitter() {
-        let config = r#"
-[native]
-port = 1987
-"#
-            .to_string();
-
-        let args = parse_config_file(config, 4);
-
-        assert!(args.native_sink_config.is_some());
-        let native_sink_config = args.native_sink_config.unwrap();
-        assert_eq!(native_sink_config.host, String::from("127.0.0.1"));
-        assert_eq!(native_sink_config.port, 1987);
-    }
-
-    #[test]
-    fn config_native_sink_config_distinct_host() {
-        let config = r#"
-[native]
-host = "foo.example.com"
-"#
-            .to_string();
-
-        let args = parse_config_file(config, 4);
-
-        assert!(args.native_sink_config.is_some());
-        let native_sink_config = args.native_sink_config.unwrap();
-        assert_eq!(native_sink_config.host, String::from("foo.example.com"));
-        assert_eq!(native_sink_config.port, 1972);
     }
 
     #[test]
